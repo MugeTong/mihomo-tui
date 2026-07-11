@@ -12,18 +12,29 @@ Run the local TUI against the last generated config snapshot:
 make run
 ```
 
-Build all supported Linux release binaries:
+Build platform-specific self-contained installers:
 
 ```bash
 make build
 ```
 
+The build downloads the pinned official Mihomo core and GeoIP database, verifies
+their SHA-256 hashes, embeds them with `mhmt`, and writes only release installers
+to `releases/`. Set `MIHOMO_ASSET_DIR` and `GEOIP_ASSET` to reuse matching local
+files.
+
 Outputs:
 
 ```text
-releases/linux-amd64/mhmt
-releases/linux-arm64/mhmt
+releases/mihomo-tui-linux-amd64-installer
+releases/mihomo-tui-linux-arm64-installer
+releases/mihomo-tui-darwin-arm64-installer
 ```
+
+The installer places `mhmt` in `~/.local/bin`, the versioned Mihomo core and
+offline GeoIP data under `$XDG_DATA_HOME/mihomo-tui` (default
+`~/.local/share/mihomo-tui`), and initial settings in
+`$XDG_CONFIG_HOME/mihomo-tui` without overwriting existing settings.
 
 Run tests:
 

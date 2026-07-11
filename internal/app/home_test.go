@@ -39,7 +39,7 @@ func TestHomeUsesDirectGroupAndNodeNavigation(t *testing.T) {
 func TestHomeLoadsNodesAndPoliciesFromConfigSnapshot(t *testing.T) {
 	cfg := config.Default()
 	cfg.ConfigPath = filepath.Join(t.TempDir(), "config.yaml")
-	data := []byte("proxies:\n  - {name: Tokyo, type: trojan, server: example.test, port: 443}\nproxy-groups:\n  - {name: Proxy, type: select, proxies: [Tokyo, DIRECT]}\n  - {name: Final, type: select, proxies: [Proxy, DIRECT]}\n")
+	data := []byte("proxies:\n  - {name: Tokyo, type: trojan, server: example.test, port: 443}\nproxy-groups:\n  - {name: Proxy, type: select, proxies: [Tokyo, DIRECT]}\n  - {name: Final, type: select, proxies: [Proxy, DIRECT]}\n  - {name: GLOBAL, type: select, proxies: [Proxy, DIRECT]}\n")
 	if _, err := runtimeconfig.Write(cfg.ConfigPath, data); err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func TestHomeLoadsNodesAndPoliciesFromConfigSnapshot(t *testing.T) {
 			t.Fatalf("home view missing %q: %q", want, view)
 		}
 	}
-	for _, hidden := range []string{"DIRECT", "Direct", "Final"} {
+	for _, hidden := range []string{"DIRECT", "Direct", "Final", "GLOBAL"} {
 		if strings.Contains(view, hidden) {
 			t.Fatalf("home view unexpectedly contains %q: %q", hidden, view)
 		}

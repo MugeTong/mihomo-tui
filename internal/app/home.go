@@ -496,7 +496,7 @@ func visibleHomeGroups(groups []mihomo.ProxyGroup) []mihomo.ProxyGroup {
 	result := make([]mihomo.ProxyGroup, 0, len(groups))
 	for _, group := range groups {
 		switch group.Name {
-		case "Final", "Direct", "DIRECT":
+		case "Final", "Direct", "DIRECT", "GLOBAL":
 			continue
 		}
 		members := group.Proxies[:0]

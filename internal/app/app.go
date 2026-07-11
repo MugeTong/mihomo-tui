@@ -7,6 +7,7 @@ import (
 	"mihomo-tui/internal/config"
 	"mihomo-tui/internal/core"
 	"mihomo-tui/internal/mihomo"
+	"mihomo-tui/internal/xdg"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -200,10 +201,14 @@ func StartTUI() error {
 		return err
 	}
 	appDir := filepath.Dir(settingsPath)
+	dataDir, err := xdg.AppDataDir("mihomo-tui")
+	if err != nil {
+		return err
+	}
 	coreManager := core.NewProcessManager(core.ProcessOptions{
 		BinaryPath:        cfg.BinaryPath,
 		ConfigPath:        cfg.ConfigPath,
-		DataDir:           filepath.Join(appDir, "mihomo"),
+		DataDir:           filepath.Join(dataDir, "mihomo"),
 		PIDPath:           filepath.Join(appDir, "mihomo.pid"),
 		LogPath:           filepath.Join(appDir, "mihomo.log"),
 		ControllerAddress: config.ControllerAddress,

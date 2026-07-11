@@ -15,6 +15,18 @@ When a Mihomo binary is distributed with Mihomo TUI, the release must identify
 the exact Mihomo version and provide the corresponding source code, or a valid
 written offer/source location as required by GPL-3.0.
 
+## MetaCubeX meta-rules-dat
+
+Mihomo TUI release installers may include `geoip.metadb` from the MetaCubeX
+meta-rules-dat project so the bundled default GEOIP rule works on first launch
+without a network download.
+
+MetaCubeX meta-rules-dat is copyright its respective contributors and is
+licensed under the GNU General Public License version 3. Its source code and
+license information are available at:
+
+https://github.com/MetaCubeX/meta-rules-dat
+
 ## Bubble Tea
 
 Mihomo TUI is built with Bubble Tea, the terminal user interface framework by

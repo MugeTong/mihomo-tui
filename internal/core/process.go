@@ -97,6 +97,9 @@ func (m *ProcessManager) start(ctx context.Context) error {
 		return fmt.Errorf("open mihomo log: %w", err)
 	}
 	cmd := exec.Command(m.opts.BinaryPath, "-d", m.opts.DataDir, "-f", m.opts.ConfigPath)
+	// Keep the managed core alive when the TUI (and potentially its terminal
+	// session) exits after q. The PID file lets a later TUI instance take over.
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
 	if err := cmd.Start(); err != nil {
