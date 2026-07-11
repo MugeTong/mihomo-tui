@@ -82,6 +82,36 @@ func TestProxyGroupsBuildsGroupsWithProxyDetails(t *testing.T) {
 	}
 }
 
+func TestConnectionsSummarizesNetworks(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/connections" {
+			t.Fatalf("path = %q, want /connections", r.URL.Path)
+		}
+		writeJSON(t, w, map[string]any{
+			"downloadTotal": 4096,
+			"uploadTotal":   1024,
+			"connections": []map[string]any{
+				{"metadata": map[string]string{"network": "tcp"}},
+				{"metadata": map[string]string{"network": "TCP"}},
+				{"metadata": map[string]string{"network": "udp"}},
+			},
+		})
+	}))
+	defer server.Close()
+
+	client, err := NewClient(server.URL, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := client.Connections()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snapshot.DownloadTotal != 4096 || snapshot.UploadTotal != 1024 || snapshot.Connections != 3 || snapshot.TCP != 2 || snapshot.UDP != 1 {
+		t.Fatalf("snapshot = %+v", snapshot)
+	}
+}
+
 func TestSelectProxy(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {

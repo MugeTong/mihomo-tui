@@ -6,6 +6,28 @@ type Version struct {
 	Version string `json:"version"`
 }
 
+type ConnectionsSnapshot struct {
+	DownloadTotal int64
+	UploadTotal   int64
+	Connections   int
+	TCP           int
+	UDP           int
+}
+
+type connectionsResponse struct {
+	DownloadTotal int64        `json:"downloadTotal"`
+	UploadTotal   int64        `json:"uploadTotal"`
+	Connections   []connection `json:"connections"`
+}
+
+type connection struct {
+	Metadata connectionMetadata `json:"metadata"`
+}
+
+type connectionMetadata struct {
+	Network string `json:"network"`
+}
+
 type ProxyGroup struct {
 	Name    string
 	Type    string

@@ -44,7 +44,7 @@ type pageEntry struct {
 func newPages(client *mihomo.Client, coreManager core.Manager, cfg config.Config) []pageEntry {
 	return []pageEntry{
 		{id: pageHome, label: "Home", page: newHomePage(client, coreManager, cfg)},
-		{id: pageTraffic, label: "Traffic", page: newTrafficPage()},
+		{id: pageTraffic, label: "Traffic", page: newTrafficPage(client, coreManager)},
 		{id: pageSources, label: "Sources", page: newSourcesPage(cfg)},
 		{id: pageRules, label: "Rules", page: newRulesPage()},
 		{id: pageSettings, label: "Settings", page: newSettingsPage(cfg)},

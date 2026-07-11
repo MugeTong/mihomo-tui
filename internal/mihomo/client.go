@@ -55,6 +55,27 @@ func (c *Client) Version() (Version, error) {
 	return version, nil
 }
 
+func (c *Client) Connections() (ConnectionsSnapshot, error) {
+	var response connectionsResponse
+	if err := c.do(http.MethodGet, "/connections", nil, &response); err != nil {
+		return ConnectionsSnapshot{}, err
+	}
+	snapshot := ConnectionsSnapshot{
+		DownloadTotal: response.DownloadTotal,
+		UploadTotal:   response.UploadTotal,
+		Connections:   len(response.Connections),
+	}
+	for _, connection := range response.Connections {
+		switch strings.ToLower(connection.Metadata.Network) {
+		case "tcp":
+			snapshot.TCP++
+		case "udp":
+			snapshot.UDP++
+		}
+	}
+	return snapshot, nil
+}
+
 func (c *Client) ProxyGroups() ([]ProxyGroup, error) {
 	var response proxyResponse
 	if err := c.do(http.MethodGet, "/proxies", nil, &response); err != nil {
