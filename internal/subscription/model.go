@@ -30,8 +30,8 @@ type Node struct {
 type SourceType string
 
 const (
-	SourceURL   SourceType = "url"
-	SourceShare SourceType = "share"
+	SourceURL SourceType = "url"
+	SourceURI SourceType = "uri"
 )
 
 type Source struct {

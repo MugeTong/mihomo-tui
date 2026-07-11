@@ -3,6 +3,7 @@ package subscription
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -36,11 +37,15 @@ func TestStoreRoundTripUsesPrivateAtomicFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(report.Issues) != 0 || len(loaded.Nodes) != 1 || len(loaded.Sources) != 1 {
+	if len(report.Issues) != 0 || len(loaded.Nodes) != 0 || len(loaded.Sources) != 1 {
 		t.Fatalf("loaded state = %+v, report = %+v", loaded, report)
 	}
-	if loaded.Nodes[0].Options["password"] != "secret" {
-		t.Fatal("protocol options did not survive round trip")
+	persisted, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(persisted), "secret") || strings.Contains(string(persisted), "\"nodes\"") {
+		t.Fatal("derived nodes leaked into state file")
 	}
 }
 

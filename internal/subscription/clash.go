@@ -40,11 +40,12 @@ func ImportClashYAML(data []byte, sourceID string) (ImportResult, error) {
 			})
 			continue
 		}
-		if _, duplicate := seenIDs[node.ID]; duplicate {
+		key := node.ID + "\x00" + node.Name
+		if _, duplicate := seenIDs[key]; duplicate {
 			result.Duplicates++
 			continue
 		}
-		seenIDs[node.ID] = struct{}{}
+		seenIDs[key] = struct{}{}
 		result.Nodes = append(result.Nodes, node)
 	}
 

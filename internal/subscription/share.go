@@ -32,12 +32,13 @@ func ImportShareLinks(data []byte, sourceID string) (ImportResult, error) {
 			index++
 			continue
 		}
-		if _, duplicate := seen[node.ID]; duplicate {
+		key := node.ID + "\x00" + node.Name
+		if _, duplicate := seen[key]; duplicate {
 			result.Duplicates++
 			index++
 			continue
 		}
-		seen[node.ID] = struct{}{}
+		seen[key] = struct{}{}
 		result.Nodes = append(result.Nodes, node)
 		index++
 	}

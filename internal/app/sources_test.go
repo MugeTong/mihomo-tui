@@ -24,7 +24,7 @@ func TestSourcesPageShareInputAddsNodesWithoutSourceRecord(t *testing.T) {
 	}
 	page, _ = p.Update(cmd())
 	p = page.(sourcesPage)
-	if len(p.state.Sources) != 0 || len(p.state.Nodes) != 1 {
+	if len(p.state.Sources) != 1 || p.state.Sources[0].Type != subscription.SourceURI || len(p.state.Nodes) != 1 {
 		t.Fatalf("state = %+v", p.state)
 	}
 	generated, err := os.ReadFile(store.Path + ".yaml")
@@ -63,6 +63,14 @@ func TestSourcesPageOnlyCapturesInputAfterA(t *testing.T) {
 	page, _ = p.Update(tea.KeyMsg{Type: tea.KeyEsc})
 	if page.(sourcesPage).InputActive() {
 		t.Fatal("esc did not return to source list")
+	}
+}
+
+func TestSourcesPageDoesNotReloadAfterInitialization(t *testing.T) {
+	p := newSourcesPageWithStore(subscription.Store{}, nil).(sourcesPage)
+	p.initialized = true
+	if cmd := p.Init(); cmd != nil {
+		t.Fatal("initialized Sources page reloaded on navigation")
 	}
 }
 

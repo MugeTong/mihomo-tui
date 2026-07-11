@@ -15,15 +15,16 @@ import (
 )
 
 type sourcesPage struct {
-	store   subscription.Store
-	cfg     config.Config
-	pathErr error
-	state   subscription.State
-	input   string
-	focused bool
-	loading bool
-	status  string
-	err     string
+	store       subscription.Store
+	cfg         config.Config
+	pathErr     error
+	state       subscription.State
+	input       string
+	focused     bool
+	loading     bool
+	initialized bool
+	status      string
+	err         string
 }
 
 type sourcesLoadedMsg struct {
@@ -57,6 +58,9 @@ func newSourcesPageWithConfig(store subscription.Store, cfg config.Config, pathE
 }
 
 func (p sourcesPage) Init() tea.Cmd {
+	if p.initialized {
+		return nil
+	}
 	if p.pathErr != nil {
 		err := p.pathErr
 		return func() tea.Msg { return sourcesLoadedMsg{err: err} }
@@ -70,6 +74,7 @@ func (p sourcesPage) Update(msg tea.Msg) (Page, tea.Cmd) {
 		return p.updateKey(msg)
 	case sourcesLoadedMsg:
 		p.loading = false
+		p.initialized = true
 		if msg.err != nil {
 			p.err = msg.err.Error()
 			return p, nil
@@ -80,6 +85,7 @@ func (p sourcesPage) Update(msg tea.Msg) (Page, tea.Cmd) {
 		}
 	case sourceAddedMsg:
 		p.loading = false
+		p.initialized = true
 		if msg.state.Version != 0 {
 			p.state = msg.state
 		}
@@ -181,27 +187,20 @@ func (p sourcesPage) addSource() tea.Cmd {
 	state := cloneSubscriptionState(p.state)
 	store, cfg := p.store, p.cfg
 	return func() tea.Msg {
-		var source *subscription.Source
-		var result subscription.ImportResult
-		var err error
+		source := subscription.Source{Type: subscription.SourceURI, Location: input, UpdatedAt: time.Now()}
 		if parsed, parseErr := url.Parse(input); parseErr == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") {
-			value := subscription.Source{Type: subscription.SourceURL, Location: input, UpdatedAt: time.Now()}
-			source = &value
-			result, err = subscription.DefaultFetcher().Import(input, "url")
-		} else {
-			result, err = subscription.ImportShareLinks([]byte(input), "share")
+			source.Type = subscription.SourceURL
 		}
+		state.AddSource(source)
+		nodes, report, err := subscription.Rebuild(state.Sources, subscription.DefaultFetcher())
 		if err != nil {
 			return sourceAddedMsg{err: err}
 		}
-		report, err := state.AddImport(source, result)
-		if err != nil {
-			return sourceAddedMsg{err: err}
-		}
+		state.Nodes = nodes
 		if err := saveRuntime(store, cfg, state); err != nil {
 			return sourceAddedMsg{state: state, err: err}
 		}
-		return sourceAddedMsg{state: state, nodes: report.Added, duplicates: report.Duplicates, renamed: report.Renamed, issues: len(result.Issues)}
+		return sourceAddedMsg{state: state, nodes: report.Added, duplicates: report.Duplicates, renamed: report.Renamed, issues: report.Skipped}
 	}
 }
 
@@ -209,26 +208,18 @@ func (p sourcesPage) refresh() tea.Cmd {
 	state := cloneSubscriptionState(p.state)
 	store, cfg := p.store, p.cfg
 	return func() tea.Msg {
-		nodes, duplicates, renamed, issues := 0, 0, 0, 0
+		nodes, report, err := subscription.Rebuild(state.Sources, subscription.DefaultFetcher())
+		if err != nil {
+			return sourceAddedMsg{state: state, err: err}
+		}
+		state.Nodes = nodes
 		for index := range state.Sources {
-			result, err := subscription.DefaultFetcher().Import(state.Sources[index].Location, "url")
-			if err != nil {
-				return sourceAddedMsg{state: state, err: err}
-			}
 			state.Sources[index].UpdatedAt = time.Now()
-			report, err := state.AddImport(&state.Sources[index], result)
-			if err != nil {
-				return sourceAddedMsg{state: state, err: err}
-			}
-			nodes += report.Added
-			duplicates += report.Duplicates
-			renamed += report.Renamed
-			issues += len(result.Issues)
 		}
 		if err := saveRuntime(store, cfg, state); err != nil {
 			return sourceAddedMsg{state: state, err: err}
 		}
-		return sourceAddedMsg{state: state, nodes: nodes, duplicates: duplicates, renamed: renamed, issues: issues}
+		return sourceAddedMsg{state: state, nodes: report.Added, duplicates: report.Duplicates, renamed: report.Renamed, issues: report.Skipped}
 	}
 }
 
@@ -236,6 +227,12 @@ func (p sourcesPage) load() tea.Cmd {
 	store, cfg := p.store, p.cfg
 	return func() tea.Msg {
 		state, report, err := store.Load()
+		if err == nil && len(report.Issues) > 0 {
+			err = store.Save(state)
+		}
+		if err == nil && len(state.Sources) > 0 {
+			state.Nodes, _, err = subscription.Rebuild(state.Sources, subscription.DefaultFetcher())
+		}
 		if err == nil {
 			err = writeRuntime(cfg, state)
 		}

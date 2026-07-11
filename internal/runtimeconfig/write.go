@@ -1,6 +1,7 @@
 package runtimeconfig
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,6 +15,11 @@ func Write(path string, data []byte) (string, error) {
 		return "", err
 	}
 	directory := filepath.Dir(resolved)
+	if existing, readErr := os.ReadFile(resolved); readErr == nil && bytes.Equal(existing, data) {
+		return resolved, nil
+	} else if readErr != nil && !os.IsNotExist(readErr) {
+		return "", fmt.Errorf("read existing runtime config: %w", readErr)
+	}
 	if err := os.MkdirAll(directory, 0o700); err != nil {
 		return "", fmt.Errorf("create runtime config directory: %w", err)
 	}

@@ -73,7 +73,7 @@ proxies:
 	}
 }
 
-func TestImportClashYAMLDeduplicatesStableIdentity(t *testing.T) {
+func TestImportClashYAMLPreservesDifferentlyNamedAliases(t *testing.T) {
 	data := []byte(`
 proxies:
   - {name: First Name, type: vless, server: edge.example.test, port: 443, uuid: 00000000-0000-0000-0000-000000000001}
@@ -83,7 +83,7 @@ proxies:
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Nodes) != 1 || result.Duplicates != 1 || len(result.Issues) != 0 {
+	if len(result.Nodes) != 2 || result.Duplicates != 0 || len(result.Issues) != 0 {
 		t.Fatalf("result = %+v", result)
 	}
 }

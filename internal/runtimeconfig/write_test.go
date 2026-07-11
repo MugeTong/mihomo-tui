@@ -36,3 +36,25 @@ func TestWriteRejectsEmptyPath(t *testing.T) {
 		t.Fatal("empty path unexpectedly accepted")
 	}
 }
+
+func TestWriteDoesNotReplaceIdenticalConfig(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	data := []byte("mode: rule\n")
+	if _, err := Write(path, data); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Write(path, data); err != nil {
+		t.Fatal(err)
+	}
+	after, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !os.SameFile(before, after) {
+		t.Fatal("identical runtime config was replaced")
+	}
+}

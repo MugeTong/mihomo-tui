@@ -5,72 +5,28 @@ import (
 	"strings"
 )
 
-const CurrentStateVersion = 2
+const CurrentStateVersion = 3
 
 type State struct {
 	Version    int               `json:"version"`
 	Sources    []Source          `json:"sources"`
-	Nodes      []Node            `json:"nodes"`
 	Selections []PolicySelection `json:"policy_selections"`
+	Nodes      []Node            `json:"-"` // Derived from Sources; never persisted.
 }
 
 type ReconcileReport struct{ Issues []string }
 
 func NewState() State { return State{Version: CurrentStateVersion} }
 
-// AddImport merges an import into the global node pool. Display names are the
-// user-facing identity: a later node with the same name replaces the old one.
-func (s *State) AddImport(source *Source, result ImportResult) (MergeReport, error) {
-	report := MergeReport{Duplicates: result.Duplicates}
-	if source != nil {
-		if source.Type != SourceURL || strings.TrimSpace(source.Location) == "" {
-			return report, fmt.Errorf("invalid source metadata")
-		}
-		location := strings.TrimSpace(source.Location)
-		found := false
-		for index := range s.Sources {
-			if s.Sources[index].Location == location {
-				s.Sources[index] = *source
-				found = true
-				break
-			}
-		}
-		if !found {
-			s.Sources = append(s.Sources, *source)
+func (s *State) AddSource(source Source) bool {
+	source.Location = strings.TrimSpace(source.Location)
+	for _, existing := range s.Sources {
+		if existing.Type == source.Type && existing.Location == source.Location {
+			return false
 		}
 	}
-
-	knownIDs := make(map[string]struct{}, len(s.Nodes)+len(result.Nodes))
-	usedNames := make(map[string]struct{}, len(s.Nodes)+len(result.Nodes))
-	for _, node := range s.Nodes {
-		knownIDs[node.ID] = struct{}{}
-		usedNames[node.Name] = struct{}{}
-	}
-	for _, node := range result.Nodes {
-		if err := validateNode(node); err != nil {
-			return report, fmt.Errorf("invalid imported node %s: %w", safeNodeName(node.Name), err)
-		}
-		if _, exists := knownIDs[node.ID]; exists {
-			report.Duplicates++
-			continue
-		}
-		base := node.Name
-		if _, exists := usedNames[base]; exists {
-			for number := 2; ; number++ {
-				candidate := fmt.Sprintf("%s (%d)", base, number)
-				if _, exists := usedNames[candidate]; !exists {
-					node.Name = candidate
-					break
-				}
-			}
-			report.Renamed++
-		}
-		usedNames[node.Name] = struct{}{}
-		knownIDs[node.ID] = struct{}{}
-		s.Nodes = append(s.Nodes, node)
-		report.Added++
-	}
-	return report, nil
+	s.Sources = append(s.Sources, source)
+	return true
 }
 
 func (s *State) Reconcile() ReconcileReport {
@@ -80,85 +36,61 @@ func (s *State) Reconcile() ReconcileReport {
 		report.Issues = append(report.Issues, "discarded incompatible subscription state")
 		return report
 	}
-
-	seenSources := make(map[string]struct{}, len(s.Sources))
+	seen := make(map[string]struct{}, len(s.Sources))
 	sources := make([]Source, 0, len(s.Sources))
 	for _, source := range s.Sources {
 		source.Location = strings.TrimSpace(source.Location)
-		if source.Type != SourceURL || source.Location == "" {
+		if (source.Type != SourceURL && source.Type != SourceURI) || source.Location == "" {
 			report.Issues = append(report.Issues, "removed invalid source")
 			continue
 		}
-		if _, exists := seenSources[source.Location]; exists {
+		key := string(source.Type) + "\x00" + source.Location
+		if _, duplicate := seen[key]; duplicate {
 			report.Issues = append(report.Issues, "removed duplicate source")
 			continue
 		}
-		seenSources[source.Location] = struct{}{}
+		seen[key] = struct{}{}
 		sources = append(sources, source)
 	}
 	s.Sources = sources
+	return report
+}
 
-	oldToNewID := make(map[string]string, len(s.Nodes))
-	knownIDs := make(map[string]struct{}, len(s.Nodes))
-	usedNames := make(map[string]struct{}, len(s.Nodes))
-	nodes := make([]Node, 0, len(s.Nodes))
-	for _, node := range s.Nodes {
-		oldID := node.ID
+func mergeNodes(existing []Node, result ImportResult) ([]Node, MergeReport, error) {
+	report := MergeReport{Duplicates: result.Duplicates}
+	// IDs already present before this source are cross-source duplicates. Do
+	// not add current-source IDs here: one provider may intentionally expose
+	// multiple differently named aliases for the same connection.
+	knownIDs := make(map[string]struct{}, len(existing))
+	usedNames := make(map[string]struct{}, len(existing)+len(result.Nodes))
+	for _, node := range existing {
+		knownIDs[node.ID] = struct{}{}
+		usedNames[node.Name] = struct{}{}
+	}
+	for _, node := range result.Nodes {
 		if err := validateNode(node); err != nil {
-			report.Issues = append(report.Issues, "removed invalid node "+safeNodeName(node.Name))
+			return nil, report, fmt.Errorf("invalid imported node %s: %w", safeNodeName(node.Name), err)
+		}
+		if _, duplicate := knownIDs[node.ID]; duplicate {
+			report.Duplicates++
 			continue
 		}
-		id, err := stableNodeID(node)
-		if err != nil {
-			report.Issues = append(report.Issues, "removed node with unsupported options "+safeNodeName(node.Name))
-			continue
-		}
-		node.ID = id
-		oldToNewID[oldID] = id
-		oldToNewID[id] = id
-		if _, exists := knownIDs[node.ID]; exists {
-			report.Issues = append(report.Issues, "removed duplicate node "+safeNodeName(node.Name))
-			continue
-		}
-		if _, exists := usedNames[node.Name]; exists {
+		if _, collision := usedNames[node.Name]; collision {
 			base := node.Name
 			for number := 2; ; number++ {
 				candidate := fmt.Sprintf("%s (%d)", base, number)
-				if _, exists := usedNames[candidate]; !exists {
+				if _, used := usedNames[candidate]; !used {
 					node.Name = candidate
 					break
 				}
 			}
-			report.Issues = append(report.Issues, "renamed duplicate node "+safeNodeName(base))
+			report.Renamed++
 		}
-		knownIDs[node.ID] = struct{}{}
 		usedNames[node.Name] = struct{}{}
-		nodes = append(nodes, node)
+		existing = append(existing, node)
+		report.Added++
 	}
-	s.Nodes = nodes
-
-	validIDs := make(map[string]struct{}, len(nodes))
-	for _, node := range nodes {
-		validIDs[node.ID] = struct{}{}
-	}
-	selections := make([]PolicySelection, 0, len(s.Selections))
-	seenPolicies := make(map[string]struct{}, len(s.Selections))
-	for _, selection := range s.Selections {
-		selection.NodeID = oldToNewID[selection.NodeID]
-		if strings.TrimSpace(selection.Policy) == "" {
-			continue
-		}
-		if _, exists := validIDs[selection.NodeID]; !exists {
-			continue
-		}
-		if _, exists := seenPolicies[selection.Policy]; exists {
-			continue
-		}
-		seenPolicies[selection.Policy] = struct{}{}
-		selections = append(selections, selection)
-	}
-	s.Selections = selections
-	return report
+	return existing, report, nil
 }
 
 func validateNode(node Node) error {

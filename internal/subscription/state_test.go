@@ -10,13 +10,12 @@ func TestAddImportDeduplicatesIDAndRenamesNameCollision(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	state := State{Version: CurrentStateVersion, Nodes: []Node{old}}
-	report, err := state.AddImport(nil, ImportResult{Nodes: []Node{next, old}})
+	nodes, report, err := mergeNodes([]Node{old}, ImportResult{Nodes: []Node{next, old}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(state.Nodes) != 2 || state.Nodes[1].Name != "Tokyo (2)" {
-		t.Fatalf("nodes = %+v", state.Nodes)
+	if len(nodes) != 2 || nodes[1].Name != "Tokyo (2)" {
+		t.Fatalf("nodes = %+v", nodes)
 	}
 	if report.Added != 1 || report.Duplicates != 1 || report.Renamed != 1 {
 		t.Fatalf("report = %+v", report)
@@ -26,12 +25,8 @@ func TestAddImportDeduplicatesIDAndRenamesNameCollision(t *testing.T) {
 func TestAddImportDeduplicatesSourceURL(t *testing.T) {
 	state := NewState()
 	source := Source{Type: SourceURL, Location: "https://sub.example.test/token"}
-	if _, err := state.AddImport(&source, ImportResult{}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := state.AddImport(&source, ImportResult{}); err != nil {
-		t.Fatal(err)
-	}
+	state.AddSource(source)
+	state.AddSource(source)
 	if len(state.Sources) != 1 {
 		t.Fatalf("sources = %+v", state.Sources)
 	}
