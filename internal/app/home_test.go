@@ -1,7 +1,10 @@
 package app
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -14,6 +17,37 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
+
+func TestHomeWaitsForManagedProxyGroup(t *testing.T) {
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests++
+		proxies := map[string]any{
+			"Final": map[string]any{"name": "Final", "type": "Selector", "now": "DIRECT", "all": []string{"DIRECT"}},
+		}
+		if requests > 1 {
+			proxies["Proxy"] = map[string]any{"name": "Proxy", "type": "Selector", "now": "Tokyo", "all": []string{"Tokyo", "DIRECT"}}
+			proxies["Tokyo"] = map[string]any{"name": "Tokyo", "type": "Trojan"}
+		}
+		if err := json.NewEncoder(w).Encode(map[string]any{"proxies": proxies}); err != nil {
+			t.Fatal(err)
+		}
+	}))
+	defer server.Close()
+	client, err := mihomo.NewClient(server.URL, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := homePage{client: client}
+	groups, err := p.loadReadyProxyGroups()
+	if err != nil {
+		t.Fatal(err)
+	}
+	visible := visibleHomeGroups(groups)
+	if requests != 2 || len(visible) != 1 || visible[0].Name != "Proxy" {
+		t.Fatalf("requests=%d visible=%+v", requests, visible)
+	}
+}
 
 func TestHomeUsesDirectGroupAndNodeNavigation(t *testing.T) {
 	p := homePage{groups: []mihomo.ProxyGroup{

@@ -15,6 +15,11 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+const (
+	proxyGroupsReadyAttempts = 20
+	proxyGroupsReadyDelay    = 100 * time.Millisecond
+)
+
 type homePage struct {
 	client      *mihomo.Client
 	coreManager core.Manager
@@ -320,9 +325,31 @@ func (p homePage) loadProxyGroups() tea.Cmd {
 			groups, err := runtimeconfig.LoadProxyGroups(p.cfg.ConfigPath)
 			return proxyGroupsLoadedMsg{groups: groups, snapshot: err == nil, err: err}
 		}
-		groups, err := p.client.ProxyGroups()
+		groups, err := p.loadReadyProxyGroups()
 		return proxyGroupsLoadedMsg{groups: groups, err: err}
 	}
+}
+
+func (p homePage) loadReadyProxyGroups() ([]mihomo.ProxyGroup, error) {
+	if p.client == nil {
+		return nil, fmt.Errorf("mihomo controller unavailable")
+	}
+	var lastErr error
+	for attempt := 0; attempt < proxyGroupsReadyAttempts; attempt++ {
+		groups, err := p.client.ProxyGroups()
+		if err == nil && len(visibleHomeGroups(groups)) > 0 {
+			return groups, nil
+		}
+		if err != nil {
+			lastErr = err
+		} else {
+			lastErr = fmt.Errorf("proxy groups are not ready")
+		}
+		if attempt+1 < proxyGroupsReadyAttempts {
+			time.Sleep(proxyGroupsReadyDelay)
+		}
+	}
+	return nil, lastErr
 }
 
 func (p homePage) selectCurrentProxy() tea.Cmd {
