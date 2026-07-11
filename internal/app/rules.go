@@ -102,17 +102,17 @@ func (p rulesPage) View(width, height int) string {
 	title := titleStyle.Render("Routing Rules")
 	// Keep the input compact and leave a spare cell on the right. Filling the
 	// terminal's final column can trigger an automatic wrap in some terminals.
-	searchWidth := min(48, max(width-lipgloss.Width(title)-3, 1))
+	searchWidth := min(48, max(width-lipgloss.Width("  ")-1, 1))
 	searchBar := p.renderSearchBar(searchWidth)
 	typeWidth, valueWidth, policyWidth := ruleColumnWidths(width)
 	columns := sectionStyle.Render("  ") +
 		labelStyle.Render(padOrTruncate("TYPE", typeWidth)) + " " +
 		labelStyle.Render(padOrTruncate("POLICY", policyWidth)) + " " +
 		labelStyle.Render(padOrTruncate("VALUE", valueWidth))
-	header := title + "  " + searchBar + "\n\n" + columns
+	header := title + "\n\n" + sectionStyle.Render("  ") + searchBar + "\n\n" + columns
 
 	rules := p.visibleRules()
-	bodyHeight := max(height-3, 1)
+	bodyHeight := max(height-5, 1)
 	if len(rules) == 0 {
 		return header + "\n" + labelStyle.Render("  No rules matched")
 	}
