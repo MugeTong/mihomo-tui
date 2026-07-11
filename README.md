@@ -12,17 +12,10 @@ Run with mock data:
 make run
 ```
 
-Build for the current machine:
+Build all supported Linux release binaries:
 
 ```bash
 make build
-./releases/mhmt
-```
-
-Build Ubuntu/Linux binaries:
-
-```bash
-make build-linux
 ```
 
 Outputs:

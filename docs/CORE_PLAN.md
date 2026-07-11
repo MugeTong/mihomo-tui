@@ -176,7 +176,7 @@ Settings:
 
 - Initialize Git.
 - Ignore local build output.
-- Send local build output to `releases/mhmt`.
+- Send release output to architecture-specific directories under `releases/`.
 - Add Linux amd64 and arm64 build targets.
 - Keep `go test ./...` passing.
 
@@ -254,7 +254,7 @@ Settings:
 ## Completed
 
 - Disable mouse support.
-- Send local build output to `releases/mhmt`.
+- Send release output to architecture-specific directories under `releases/`.
 - Move the root Bubble Tea model to `internal/app`.
 - Introduce a `Page` interface.
 - Add app config defaults.
