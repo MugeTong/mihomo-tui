@@ -189,22 +189,13 @@ func StartTUI() error {
 		return err
 	}
 
-	client, err := mihomo.NewClient(cfg.ControllerURL, cfg.Secret)
+	client, err := mihomo.NewClient(config.ControllerURL, cfg.Secret)
 	if err != nil {
 		return err
 	}
 
-	coreManager := core.NewMockManager(initialCoreStatus(cfg.SourceMode))
+	coreManager := core.NewMockManager(core.StatusStopped)
 	p := tea.NewProgram(newModel(client, coreManager, cfg), tea.WithAltScreen())
 	_, err = p.Run()
 	return err
-}
-
-func initialCoreStatus(sourceMode string) core.Status {
-	switch sourceMode {
-	case "managed":
-		return core.StatusStopped
-	default:
-		return core.StatusUnavailable
-	}
 }

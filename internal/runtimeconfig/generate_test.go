@@ -1,6 +1,7 @@
 package runtimeconfig
 
 import (
+	"strings"
 	"testing"
 
 	"mihomo-tui/internal/config"
@@ -83,6 +84,11 @@ func TestGenerateWorksWithoutImportedNodes(t *testing.T) {
 	}
 	if len(document.Groups) != 2 || len(document.Groups[0].Proxies) != 1 || document.Groups[0].Proxies[0] != "DIRECT" {
 		t.Fatalf("groups = %+v", document.Groups)
+	}
+	for _, forbidden := range []string{"external-ui", "external-ui-name", "external-ui-url"} {
+		if strings.Contains(string(data), forbidden) {
+			t.Fatalf("generated config exposes web UI field %q", forbidden)
+		}
 	}
 }
 

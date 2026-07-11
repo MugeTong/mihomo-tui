@@ -1,9 +1,6 @@
 package rules
 
-import (
-	"strings"
-	"testing"
-)
+import "testing"
 
 func TestEmbeddedDefaultsParse(t *testing.T) {
 	rules, err := Default()
@@ -28,11 +25,5 @@ func TestEmbeddedDefaultsUseKnownPolicies(t *testing.T) {
 		if rule.Policy != "Proxy" && rule.Policy != "DIRECT" && rule.Policy != "Final" {
 			t.Fatalf("unknown policy in embedded defaults: %+v", rule)
 		}
-	}
-}
-
-func TestDefaultYAMLIsEmbedded(t *testing.T) {
-	if !strings.Contains(DefaultYAML(), "rules:") {
-		t.Fatal("embedded YAML is missing rules root")
 	}
 }

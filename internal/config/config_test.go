@@ -27,11 +27,6 @@ func TestDefaultPoliciesAreApplicationOwned(t *testing.T) {
 			t.Fatalf("policy[%d] = %+v, want enabled %q", i, policies[i], name)
 		}
 	}
-	for _, policy := range policies {
-		if !policy.System {
-			t.Fatalf("default policy is not system-owned: %+v", policy)
-		}
-	}
 	if policies[0].Kind != PolicySelector || policies[1].Kind != PolicyDirect || policies[2].Kind != PolicyFinal {
 		t.Fatalf("unexpected policy kinds: %+v", policies)
 	}

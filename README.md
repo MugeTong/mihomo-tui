@@ -6,7 +6,7 @@ The core scope is proxy-only: HTTP, SOCKS, and mixed proxy modes. It does not ma
 
 ## Development
 
-Run with mock data:
+Run the local TUI against the last generated config snapshot:
 
 ```bash
 make run

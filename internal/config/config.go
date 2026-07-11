@@ -6,18 +6,19 @@ import (
 	"mihomo-tui/internal/xdg"
 )
 
+const (
+	ControllerURL     = "http://127.0.0.1:9090"
+	ControllerAddress = "127.0.0.1:9090"
+)
+
 type Config struct {
-	ControllerURL string   `json:"controller_url"`
-	Secret        string   `json:"secret"`
-	ConfigPath    string   `json:"config_path"`
-	BinaryPath    string   `json:"binary_path"`
-	Platform      string   `json:"platform"`
-	RuntimeMode   string   `json:"runtime_mode"`
-	SourceMode    string   `json:"source_mode"`
-	HTTPPort      int      `json:"http_port"`
-	SOCKSPort     int      `json:"socks_port"`
-	MixedPort     int      `json:"mixed_port"`
-	Policies      []Policy `json:"policies"`
+	Secret     string   `json:"secret"`
+	ConfigPath string   `json:"config_path"`
+	BinaryPath string   `json:"binary_path"`
+	HTTPPort   int      `json:"http_port"`
+	SOCKSPort  int      `json:"socks_port"`
+	MixedPort  int      `json:"mixed_port"`
+	Policies   []Policy `json:"policies"`
 }
 
 type PolicyKind string
@@ -32,14 +33,13 @@ type Policy struct {
 	Name    string     `json:"name"`
 	Kind    PolicyKind `json:"kind"`
 	Enabled bool       `json:"enabled"`
-	System  bool       `json:"system"`
 }
 
 func DefaultPolicies() []Policy {
 	return []Policy{
-		{Name: "Proxy", Kind: PolicySelector, Enabled: true, System: true},
-		{Name: "Direct", Kind: PolicyDirect, Enabled: true, System: true},
-		{Name: "Final", Kind: PolicyFinal, Enabled: true, System: true},
+		{Name: "Proxy", Kind: PolicySelector, Enabled: true},
+		{Name: "Direct", Kind: PolicyDirect, Enabled: true},
+		{Name: "Final", Kind: PolicyFinal, Enabled: true},
 	}
 }
 
@@ -49,15 +49,11 @@ func Default() Config {
 		configPath = filepath.Join(directory, "config.yaml")
 	}
 	return Config{
-		ControllerURL: "http://127.0.0.1:9090",
-		ConfigPath:    configPath,
-		BinaryPath:    "mihomo",
-		Platform:      "ubuntu",
-		RuntimeMode:   "proxy",
-		SourceMode:    "managed",
-		HTTPPort:      7890,
-		SOCKSPort:     7891,
-		MixedPort:     7892,
-		Policies:      DefaultPolicies(),
+		ConfigPath: configPath,
+		BinaryPath: "mihomo",
+		HTTPPort:   7890,
+		SOCKSPort:  7891,
+		MixedPort:  7892,
+		Policies:   DefaultPolicies(),
 	}
 }

@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -123,7 +124,7 @@ func (p settingsPage) View(_, _ int) string {
 		p.renderField(fieldBinaryPath, "Mihomo Bin", p.cfg.BinaryPath),
 		"",
 		headerStyle.Render("About"),
-		p.renderReadOnly("Platform", p.cfg.Platform),
+		p.renderReadOnly("Platform", runtime.GOOS),
 		p.renderReadOnly("Scope", "Proxy only"),
 		p.renderReadOnly("App Version", "dev"),
 		p.renderReadOnly("License", "GPL-3.0-only"),

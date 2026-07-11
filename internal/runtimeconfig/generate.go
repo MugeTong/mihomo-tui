@@ -16,7 +16,7 @@ func Generate(cfg config.Config, state subscription.State) ([]byte, error) {
 	document := map[string]any{
 		"mode":                "rule",
 		"allow-lan":           false,
-		"external-controller": controllerAddress(cfg.ControllerURL),
+		"external-controller": config.ControllerAddress,
 		"secret":              cfg.Secret,
 		"proxies":             []map[string]any{},
 	}
@@ -196,13 +196,6 @@ func renderRules(source []rules.Rule) []string {
 		result = append(result, strings.Join(parts, ","))
 	}
 	return result
-}
-
-func controllerAddress(value string) string {
-	value = strings.TrimSpace(value)
-	value = strings.TrimPrefix(value, "http://")
-	value = strings.TrimPrefix(value, "https://")
-	return strings.TrimSuffix(value, "/")
 }
 
 func cloneMap(source map[string]any) map[string]any {

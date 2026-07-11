@@ -32,23 +32,11 @@ func Load() (Config, error) {
 		return cfg, fmt.Errorf("parse config: %w", err)
 	}
 
-	if cfg.ControllerURL == "" {
-		cfg.ControllerURL = defaults.ControllerURL
-	}
 	if cfg.ConfigPath == "" {
 		cfg.ConfigPath = defaults.ConfigPath
 	}
 	if cfg.BinaryPath == "" {
 		cfg.BinaryPath = defaults.BinaryPath
-	}
-	if cfg.Platform == "" {
-		cfg.Platform = defaults.Platform
-	}
-	if cfg.RuntimeMode == "" {
-		cfg.RuntimeMode = defaults.RuntimeMode
-	}
-	if cfg.SourceMode == "" {
-		cfg.SourceMode = defaults.SourceMode
 	}
 	if cfg.HTTPPort == 0 {
 		cfg.HTTPPort = defaults.HTTPPort

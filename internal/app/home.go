@@ -105,9 +105,6 @@ func (p homePage) Update(msg tea.Msg) (Page, tea.Cmd) {
 		}
 		p.status = "Proxy selected"
 		p.applySelection(msg.groupName, msg.proxyName)
-		if p.useMock() {
-			return p, nil
-		}
 		return p, p.loadProxyGroups()
 	case proxyDelayTestedMsg:
 		p.loading = false
@@ -154,9 +151,7 @@ func (p homePage) Update(msg tea.Msg) (Page, tea.Cmd) {
 		}
 		p.err = ""
 		p.status = "Core stopped"
-		if p.useManaged() {
-			return p, p.loadProxyGroups()
-		}
+		return p, p.loadProxyGroups()
 	}
 
 	return p, nil
@@ -218,7 +213,7 @@ func (p homePage) updateKey(key tea.KeyMsg) (Page, tea.Cmd) {
 func (p homePage) View(width, height int) string {
 	contentWidth := max(width-4, 10)
 
-	statusSection := p.renderStatusSection(contentWidth)
+	statusSection := p.renderStatusSection()
 	groupSection := p.renderGroupsSection(contentWidth)
 	nodesHeight := p.nodesViewportHeight(height)
 	p.ensureNodeVisible(nodesHeight)
@@ -231,15 +226,8 @@ func (p homePage) Help() string {
 	return "left/right group • up/down node • enter select • space core"
 }
 
-func (p homePage) renderStatusSection(width int) string {
-	action := btnDisabledStyle.Render(strings.Title(p.cfg.SourceMode))
-	if p.loading {
-		action = btnDisabledStyle.Render("Loading")
-	}
-
+func (p homePage) renderStatusSection() string {
 	title := titleStyle.Render("Status")
-	gap := max(width-lipgloss.Width(title)-lipgloss.Width(action), 1)
-	titleLine := title + strings.Repeat(" ", gap) + action
 
 	status := offStyle.Render("Disconnected")
 	if p.snapshot && len(p.groups) > 0 {
@@ -250,10 +238,9 @@ func (p homePage) renderStatusSection(width int) string {
 
 	body := labelStyle.Render("  State:     ") + status + "\n" +
 		labelStyle.Render("  Core:      ") + valueStyle.Render(string(p.coreStatus())) + "\n" +
-		labelStyle.Render("  Mode:      ") + valueStyle.Render(p.proxyMode) + "\n" +
-		labelStyle.Render("  Source:    ") + valueStyle.Render(p.cfg.SourceMode)
+		labelStyle.Render("  Mode:      ") + valueStyle.Render(p.proxyMode)
 
-	return titleLine + "\n\n" + body
+	return title + "\n\n" + body
 }
 
 func (p homePage) renderGroupsSection(width int) string {
@@ -329,10 +316,7 @@ func (p homePage) renderNodesSection(width, height int) string {
 
 func (p homePage) loadProxyGroups() tea.Cmd {
 	return func() tea.Msg {
-		if p.useMock() {
-			return proxyGroupsLoadedMsg{groups: mockProxyGroups(), err: nil}
-		}
-		if p.useManaged() && p.coreStatus() != core.StatusRunning {
+		if p.coreStatus() != core.StatusRunning {
 			groups, err := runtimeconfig.LoadProxyGroups(p.cfg.ConfigPath)
 			return proxyGroupsLoadedMsg{groups: groups, snapshot: err == nil, err: err}
 		}
@@ -348,9 +332,6 @@ func (p homePage) selectCurrentProxy() tea.Cmd {
 		if group.Name == "" || proxy.Name == "" {
 			return proxySelectedMsg{err: fmt.Errorf("no proxy selected")}
 		}
-		if p.useMock() {
-			return proxySelectedMsg{groupName: group.Name, proxyName: proxy.Name, err: nil}
-		}
 		return proxySelectedMsg{groupName: group.Name, proxyName: proxy.Name, err: p.client.SelectProxy(group.Name, proxy.Name)}
 	}
 }
@@ -360,9 +341,6 @@ func (p homePage) testCurrentProxyDelay() tea.Cmd {
 	return func() tea.Msg {
 		if proxy.Name == "" {
 			return proxyDelayTestedMsg{err: fmt.Errorf("no proxy selected")}
-		}
-		if p.useMock() {
-			return proxyDelayTestedMsg{proxyName: proxy.Name, delay: mockDelay(proxy.Name), err: nil}
 		}
 		delay, err := p.client.TestProxyDelay(proxy.Name, 5*time.Second)
 		return proxyDelayTestedMsg{proxyName: proxy.Name, delay: delay, err: err}
@@ -378,13 +356,6 @@ func (p homePage) testCurrentGroupDelay() tea.Cmd {
 
 		delays := make(map[string]int, len(nodes))
 		errs := make(map[string]error)
-		if p.useMock() {
-			for _, node := range nodes {
-				delays[node.Name] = mockDelay(node.Name)
-			}
-			return proxyGroupDelayTestedMsg{delays: delays}
-		}
-
 		for _, node := range nodes {
 			delay, err := p.client.TestProxyDelay(node.Name, 5*time.Second)
 			if err != nil {
@@ -399,10 +370,7 @@ func (p homePage) testCurrentGroupDelay() tea.Cmd {
 
 func (p homePage) reloadConfig() tea.Cmd {
 	return func() tea.Msg {
-		if p.useMock() {
-			return configReloadedMsg{err: nil}
-		}
-		if p.useManaged() && p.coreStatus() != core.StatusRunning {
+		if p.coreStatus() != core.StatusRunning {
 			return configReloadedMsg{err: fmt.Errorf("core is %s", p.coreStatus())}
 		}
 		return configReloadedMsg{err: p.client.ReloadConfig("", false)}
@@ -470,78 +438,10 @@ func (p *homePage) ensureNodeVisible(height int) {
 }
 
 func (p homePage) nodesViewportHeight(contentHeight int) int {
-	// Status is six lines, groups are three, and the two section gaps each
+	// Status is five lines, groups are three, and the two section gaps each
 	// contribute one blank line.
-	const rowsBeforeNodes = 6 + 3 + 2
+	const rowsBeforeNodes = 5 + 3 + 2
 	return max(contentHeight-rowsBeforeNodes, 1)
-}
-
-type nodeWindowInfo struct {
-	start    int
-	end      int
-	hasAbove bool
-	hasBelow bool
-}
-
-func nodeWindow(bodyHeight, totalNodes, cursor, previousStart int) nodeWindowInfo {
-	if totalNodes <= 0 {
-		return nodeWindowInfo{}
-	}
-	if bodyHeight < 2 {
-		bodyHeight = 2
-	}
-	if cursor < 0 {
-		cursor = 0
-	}
-	if cursor >= totalNodes {
-		cursor = totalNodes - 1
-	}
-
-	best := nodeWindowInfo{start: 0, end: min(totalNodes, bodyHeight-1)}
-	bestScore := -1
-	for start := 0; start < totalNodes; start++ {
-		hasAbove := start > 0
-		available := bodyHeight - 1 // position line
-		if hasAbove {
-			available--
-		}
-		if available < 1 {
-			available = 1
-		}
-
-		end := min(totalNodes, start+available)
-		hasBelow := end < totalNodes
-		if hasBelow {
-			end = min(totalNodes, start+max(available-1, 1))
-		}
-		if cursor < start || cursor >= end {
-			continue
-		}
-
-		score := end - start
-		if hasAbove {
-			score++
-		}
-		if hasBelow {
-			score++
-		}
-		if score > bodyHeight-1 {
-			continue
-		}
-
-		distance := abs(start - previousStart)
-		if score > bestScore || (score == bestScore && distance < abs(best.start-previousStart)) {
-			best = nodeWindowInfo{
-				start:    start,
-				end:      end,
-				hasAbove: hasAbove,
-				hasBelow: hasBelow,
-			}
-			bestScore = score
-		}
-	}
-
-	return best
 }
 
 func (p homePage) startLoading(status string) homePage {
@@ -585,14 +485,6 @@ func (p *homePage) applySelection(groupName, proxyName string) {
 	}
 }
 
-func (p homePage) useMock() bool {
-	return p.cfg.SourceMode == "mock"
-}
-
-func (p homePage) useManaged() bool {
-	return p.cfg.SourceMode == "managed"
-}
-
 func (p homePage) coreStatus() core.Status {
 	if p.coreManager == nil {
 		return core.StatusUnavailable
@@ -630,10 +522,6 @@ func visibleHomeGroups(groups []mihomo.ProxyGroup) []mihomo.ProxyGroup {
 }
 
 func (p homePage) toggleCore() (Page, tea.Cmd) {
-	if !p.useManaged() {
-		p.status = "Core controls are only available in managed mode"
-		return p, nil
-	}
 	if p.coreStatus() == core.StatusRunning {
 		return p.startLoading("Stopping core"), p.stopCore()
 	}
@@ -663,13 +551,6 @@ func firstDelayError(errs map[string]error) error {
 		return fmt.Errorf("%s: %w", name, err)
 	}
 	return fmt.Errorf("delay test failed")
-}
-
-func abs(value int) int {
-	if value < 0 {
-		return -value
-	}
-	return value
 }
 
 func renderDelay(ms int) string {

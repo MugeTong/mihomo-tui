@@ -25,7 +25,7 @@ Build artifacts should be written to `releases/`. The source tree should not dep
 - Home workspace first: everyday node selection lives in Home.
 - Ubuntu first: packaging, paths, and runtime assumptions target Ubuntu before other platforms.
 - Proxy only: do not change system proxy settings, install VPN routes, or manage TUN mode in the core flow.
-- Mock remains available for UI development without a live core.
+- A mock core lifecycle remains available until the real subprocess manager is connected; node data comes from the generated config snapshot rather than mock nodes.
 - Page ownership: each page owns its own cursor, filters, local state, update logic, and rendering.
 - Thin root model: the Bubble Tea root model handles global messages, page switching, and window size only.
 - Process control is separate from API control: core lifecycle is owned by `internal/core`, node operations by `internal/mihomo`.
@@ -36,9 +36,13 @@ Build artifacts should be written to `releases/`. The source tree should not dep
 ```text
 cmd/
   main.go              # CLI entrypoint for mhmt
-  start.go             # non-interactive start command
-  stop.go              # non-interactive stop command
   version.go
+
+Future CLI commands should reuse internal/core rather than implementing a
+second lifecycle path:
+
+  start.go             # future non-interactive start command
+  stop.go              # future non-interactive stop command
 
 internal/
   app/
@@ -72,10 +76,9 @@ Future managed data layout:
 
 ```text
 ~/.config/mihomo-tui/
-  app.json
-  config.yaml
-  subscriptions/
-  profiles/
+  config.json          # application settings
+  state.json           # URL/URI sources and policy selections
+  config.yaml          # last successfully generated mihomo snapshot
 
 ~/.local/share/mihomo-tui/
   bin/
@@ -209,18 +212,16 @@ Settings:
 
 ### Milestone 4: Managed Core Skeleton
 
-- Default `source_mode` to `managed`.
-- Keep `source_mode=mock` for local UI development.
 - Define `internal/core.Manager`.
 - Add core states: unavailable, stopped, starting, running, stopping, failed.
 - Add Home start/stop controls.
-- Use mock manager before wiring real embedded core.
+- Use a mock lifecycle manager before wiring the real embedded core; use generated config snapshots for node data.
 
 ### Milestone 5: Settings
 
 - Add app config file.
 - Support Ubuntu/proxy-only runtime settings.
-- Support source mode, controller URL, secret, config path, mihomo binary path, and proxy ports.
+- Support config path, mihomo binary path, and proxy ports.
 - Save settings from the Settings page.
 
 ### Milestone 6: Embedded Core
@@ -259,16 +260,13 @@ Settings:
 - Introduce a `Page` interface.
 - Add app config defaults.
 - Add `internal/mihomo.Client`.
-- Add `source_mode` support.
-- Add Home mock proxy groups for local UI development.
-- Add Home node filtering with `/`.
-- Add Settings editing for source mode, controller URL, secret, paths, and proxy ports.
+- Add Home config-snapshot proxy groups for offline display.
+- Add Settings editing for paths and proxy ports.
 - Persist Settings changes through `internal/config`.
 - Add Home current-group delay testing with `D`.
 - Add a unified bottom message bar owned by the root app.
 - Add Home nodes viewport/scrolling for larger proxy groups.
 - Add Ubuntu/Linux build targets for amd64 and arm64.
-- Default source mode to managed.
 - Add `internal/core.Manager` and mock managed core lifecycle.
 - Add Home core start/stop status controls.
 - Replace Rules placeholder with read-only routing rule browser and search.

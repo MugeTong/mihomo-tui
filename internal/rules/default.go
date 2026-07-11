@@ -20,10 +20,6 @@ func Default() ([]Rule, error) {
 	return parse(defaultYAML)
 }
 
-func DefaultYAML() string {
-	return defaultYAML
-}
-
 func parse(source string) ([]Rule, error) {
 	lines := strings.Split(source, "\n")
 	rules := make([]Rule, 0, len(lines))
