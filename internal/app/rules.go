@@ -112,7 +112,7 @@ func (p rulesPage) View(width, height int) string {
 	header := title + "  " + searchBar + "\n\n" + columns
 
 	rules := p.visibleRules()
-	bodyHeight := max(height-4, 1)
+	bodyHeight := max(height-3, 1)
 	if len(rules) == 0 {
 		return header + "\n" + labelStyle.Render("  No rules matched")
 	}

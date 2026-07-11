@@ -37,6 +37,14 @@ func TestRulesSearchBarDoesNotFillLastTerminalColumn(t *testing.T) {
 	}
 }
 
+func TestRulesViewUsesAvailableHeight(t *testing.T) {
+	p := newRulesPage().(rulesPage)
+	const height = 20
+	if got := lipgloss.Height(p.View(80, height)); got != height {
+		t.Fatalf("rules view height = %d, want %d", got, height)
+	}
+}
+
 func TestRuleColumnsUseTypePolicyValueOrder(t *testing.T) {
 	p := newRulesPage().(rulesPage)
 	view := p.View(80, 20)
