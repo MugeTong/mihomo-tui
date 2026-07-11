@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"strings"
 
+	"mihomo-tui/internal/config"
+	"mihomo-tui/internal/runtimeconfig"
 	"mihomo-tui/internal/subscription"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -15,6 +17,8 @@ import (
 
 type sourcesPage struct {
 	store        subscription.Store
+	cfg          config.Config
+	runtimePath  string
 	pathErr      error
 	state        subscription.State
 	cursor       int
@@ -32,6 +36,7 @@ type sourcesPage struct {
 type sourcesLoadedMsg struct {
 	state  subscription.State
 	report subscription.ReconcileReport
+	path   string
 	err    error
 }
 
@@ -40,6 +45,7 @@ type sourceAddedMsg struct {
 	source subscription.Source
 	nodes  int
 	issues int
+	path   string
 	err    error
 }
 
@@ -48,13 +54,19 @@ type sourceRenamedMsg struct {
 	err   error
 }
 
-func newSourcesPage() Page {
+func newSourcesPage(cfg config.Config) Page {
 	path, err := subscription.DefaultStatePath()
-	return newSourcesPageWithStore(subscription.Store{Path: path}, err)
+	return newSourcesPageWithConfig(subscription.Store{Path: path}, cfg, err)
 }
 
 func newSourcesPageWithStore(store subscription.Store, pathErr error) Page {
-	return sourcesPage{store: store, pathErr: pathErr, state: subscription.NewState(), status: "Press a to add a subscription"}
+	cfg := config.Default()
+	cfg.ConfigPath = store.Path + ".yaml"
+	return newSourcesPageWithConfig(store, cfg, pathErr)
+}
+
+func newSourcesPageWithConfig(store subscription.Store, cfg config.Config, pathErr error) Page {
+	return sourcesPage{store: store, cfg: cfg, runtimePath: cfg.ConfigPath, pathErr: pathErr, state: subscription.NewState(), status: "Press a to add a subscription"}
 }
 
 func (p sourcesPage) Init() tea.Cmd {
@@ -76,6 +88,7 @@ func (p sourcesPage) Update(msg tea.Msg) (Page, tea.Cmd) {
 			return p, nil
 		}
 		p.state = msg.state
+		p.runtimePath = msg.path
 		p.clampCursor()
 		if len(msg.report.Issues) > 0 {
 			p.status = fmt.Sprintf("Loaded with %d repaired state issues", len(msg.report.Issues))
@@ -83,11 +96,15 @@ func (p sourcesPage) Update(msg tea.Msg) (Page, tea.Cmd) {
 	case sourceAddedMsg:
 		p.loading = false
 		if msg.err != nil {
+			if msg.state.Version != 0 {
+				p.state = msg.state
+			}
 			p.err = msg.err.Error()
 			p.status = "Add failed"
 			return p, nil
 		}
 		p.state = msg.state
+		p.runtimePath = msg.path
 		p.nameInput = ""
 		p.input = ""
 		p.focused = false
@@ -230,8 +247,11 @@ func (p sourcesPage) View(width, _ int) string {
 	}
 	nameWidth := min(48, max(width-lipgloss.Width("  Name: []")-1, 1))
 	subWidth := min(48, max(width-lipgloss.Width("  Sub:  []")-1, 1))
+	pathWidth := max(width-lipgloss.Width("  Config: ")-1, 1)
 	lines := []string{
 		titleStyle.Render("Sources"),
+		labelStyle.Render("  State: ") + valueStyle.Render(padOrTruncate(p.store.Path, pathWidth+1)),
+		labelStyle.Render("  Config: ") + valueStyle.Render(padOrTruncate(p.runtimePath, pathWidth)),
 		labelStyle.Render("  Name: ") + valueStyle.Render("["+padOrTruncate(name, nameWidth)+"]"),
 		labelStyle.Render("  Sub:  ") + valueStyle.Render("["+padOrTruncate(input, subWidth)+"]"),
 		labelStyle.Render("  Press a to add • Enter confirm • Esc cancel"),
@@ -287,6 +307,7 @@ func (p sourcesPage) addSource() tea.Cmd {
 	requestedName := strings.TrimSpace(p.nameInput)
 	state := cloneSubscriptionState(p.state)
 	store := p.store
+	cfg := p.cfg
 	return func() tea.Msg {
 		sourceID, err := randomSourceID()
 		if err != nil {
@@ -316,10 +337,18 @@ func (p sourcesPage) addSource() tea.Cmd {
 		if err := state.AddImport(source, result); err != nil {
 			return sourceAddedMsg{err: err}
 		}
+		generated, err := runtimeconfig.Generate(cfg, state)
+		if err != nil {
+			return sourceAddedMsg{err: err}
+		}
 		if err := store.Save(state); err != nil {
 			return sourceAddedMsg{err: err}
 		}
-		return sourceAddedMsg{state: state, source: source, nodes: len(result.Nodes), issues: len(result.Issues)}
+		path, err := runtimeconfig.Write(cfg.ConfigPath, generated)
+		if err != nil {
+			return sourceAddedMsg{state: state, err: err}
+		}
+		return sourceAddedMsg{state: state, source: source, nodes: len(result.Nodes), issues: len(result.Issues), path: path}
 	}
 }
 
@@ -330,9 +359,18 @@ func (p sourcesPage) saveRenamed(state subscription.State) tea.Cmd {
 
 func (p sourcesPage) load() tea.Cmd {
 	store := p.store
+	cfg := p.cfg
 	return func() tea.Msg {
 		state, report, err := store.Load()
-		return sourcesLoadedMsg{state: state, report: report, err: err}
+		if err != nil {
+			return sourcesLoadedMsg{err: err}
+		}
+		generated, err := runtimeconfig.Generate(cfg, state)
+		if err != nil {
+			return sourcesLoadedMsg{state: state, report: report, err: err}
+		}
+		path, err := runtimeconfig.Write(cfg.ConfigPath, generated)
+		return sourcesLoadedMsg{state: state, report: report, path: path, err: err}
 	}
 }
 

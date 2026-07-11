@@ -44,6 +44,18 @@ func TestStoreRoundTripUsesPrivateAtomicFile(t *testing.T) {
 	}
 }
 
+func TestDefaultStatePathFollowsXDGConfigHome(t *testing.T) {
+	home := filepath.Join(t.TempDir(), "xdg")
+	t.Setenv("XDG_CONFIG_HOME", home)
+	got, err := DefaultStatePath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(home, "mihomo-tui", "state.json"); got != want {
+		t.Fatalf("state path = %q, want %q", got, want)
+	}
+}
+
 func TestStoreDoesNotOverwriteMalformedState(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "state.json")
 	original := []byte("{not-json")

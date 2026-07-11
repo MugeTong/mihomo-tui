@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"mihomo-tui/internal/xdg"
 )
 
 const appDirName = "mihomo-tui"
@@ -87,9 +89,9 @@ func Save(cfg Config) error {
 }
 
 func Path() (string, error) {
-	configDir, err := os.UserConfigDir()
+	configDir, err := xdg.AppConfigDir(appDirName)
 	if err != nil {
 		return "", fmt.Errorf("locate user config directory: %w", err)
 	}
-	return filepath.Join(configDir, appDirName, "config.json"), nil
+	return filepath.Join(configDir, "config.json"), nil
 }

@@ -43,6 +43,37 @@ func TestImportShareLinksSupportsBase64Subscription(t *testing.T) {
 	}
 }
 
+func TestImportShareLinksSupportsVLESSReality(t *testing.T) {
+	link := "vless://00000000-0000-0000-0000-000000000001@reality.example.test:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.example.test&fp=chrome&pbk=test-public-key&sid=test-short-id&type=tcp#US-VLESS-Reality"
+	result, err := ImportShareLinks([]byte(link), "reality")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Nodes) != 1 || len(result.Links) != 1 || len(result.Issues) != 0 {
+		t.Fatalf("result = %+v", result)
+	}
+	node := result.Nodes[0]
+	if node.Name != "US-VLESS-Reality" || node.Protocol != ProtocolVLESS || node.Server != "reality.example.test" || node.Port != 443 {
+		t.Fatalf("VLESS Reality node = %+v", node)
+	}
+	wantOptions := map[string]string{
+		"uuid":       "00000000-0000-0000-0000-000000000001",
+		"encryption": "none",
+		"flow":       "xtls-rprx-vision",
+		"security":   "reality",
+		"sni":        "www.example.test",
+		"fp":         "chrome",
+		"pbk":        "test-public-key",
+		"sid":        "test-short-id",
+		"type":       "tcp",
+	}
+	for key, want := range wantOptions {
+		if got := node.Options[key]; got != want {
+			t.Errorf("option %s = %v, want %q", key, got, want)
+		}
+	}
+}
+
 func TestImportShareLinksDoesNotLeakCredentialInIssue(t *testing.T) {
 	_, err := ImportShareLinks([]byte("trojan://do-not-log-this@missing-port.example.test"), "bad")
 	if err == nil {

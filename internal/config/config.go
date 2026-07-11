@@ -1,5 +1,11 @@
 package config
 
+import (
+	"path/filepath"
+
+	"mihomo-tui/internal/xdg"
+)
+
 type Config struct {
 	ControllerURL string   `json:"controller_url"`
 	Secret        string   `json:"secret"`
@@ -38,9 +44,13 @@ func DefaultPolicies() []Policy {
 }
 
 func Default() Config {
+	configPath := filepath.Join("~", ".config", "mihomo-tui", "config.yaml")
+	if directory, err := xdg.AppConfigDir("mihomo-tui"); err == nil {
+		configPath = filepath.Join(directory, "config.yaml")
+	}
 	return Config{
 		ControllerURL: "http://127.0.0.1:9090",
-		ConfigPath:    "~/.config/mihomo-tui/config.yaml",
+		ConfigPath:    configPath,
 		BinaryPath:    "mihomo",
 		Platform:      "ubuntu",
 		RuntimeMode:   "proxy",

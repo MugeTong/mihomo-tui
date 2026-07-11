@@ -1,6 +1,7 @@
 package app
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -35,13 +36,20 @@ func TestSourcesPageShareInputAddsImmediately(t *testing.T) {
 	if p.focused || p.input != "" {
 		t.Fatal("input was not cleared/unfocused after add")
 	}
+	generated, err := os.ReadFile(store.Path + ".yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(generated), "jp.example.test") || !strings.Contains(string(generated), "proxy-groups:") {
+		t.Fatalf("generated config = %s", generated)
+	}
 }
 
 func TestSourcesInputLineFitsTerminalWidth(t *testing.T) {
 	p := newSourcesPageWithStore(subscription.Store{}, nil).(sourcesPage)
 	for _, width := range []int{48, 80, 120} {
 		lines := strings.Split(p.View(width, 20), "\n")
-		for _, lineNumber := range []int{1, 2} {
+		for _, lineNumber := range []int{1, 2, 3, 4} {
 			line := lines[lineNumber]
 			if got := lipgloss.Width(line); got >= width {
 				t.Fatalf("width %d rendered line %d at %d cells", width, lineNumber+1, got)
@@ -113,7 +121,7 @@ func TestSourcesViewContainsInputAndSubscriptionList(t *testing.T) {
 		},
 	}
 	view := p.View(80, 20)
-	for _, want := range []string{"Name:", "Sub:", "Press a to add subscription", "Subscriptions", "My Subscription"} {
+	for _, want := range []string{"State:", "Config:", "Name:", "Sub:", "Press a to add subscription", "Subscriptions", "My Subscription"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("view does not contain %q: %q", want, view)
 		}
