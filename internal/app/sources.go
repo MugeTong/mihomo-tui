@@ -18,7 +18,6 @@ import (
 type sourcesPage struct {
 	store        subscription.Store
 	cfg          config.Config
-	runtimePath  string
 	pathErr      error
 	state        subscription.State
 	cursor       int
@@ -36,7 +35,6 @@ type sourcesPage struct {
 type sourcesLoadedMsg struct {
 	state  subscription.State
 	report subscription.ReconcileReport
-	path   string
 	err    error
 }
 
@@ -45,7 +43,6 @@ type sourceAddedMsg struct {
 	source subscription.Source
 	nodes  int
 	issues int
-	path   string
 	err    error
 }
 
@@ -66,7 +63,7 @@ func newSourcesPageWithStore(store subscription.Store, pathErr error) Page {
 }
 
 func newSourcesPageWithConfig(store subscription.Store, cfg config.Config, pathErr error) Page {
-	return sourcesPage{store: store, cfg: cfg, runtimePath: cfg.ConfigPath, pathErr: pathErr, state: subscription.NewState(), status: "Press a to add a subscription"}
+	return sourcesPage{store: store, cfg: cfg, pathErr: pathErr, state: subscription.NewState(), status: "Press a to add a subscription"}
 }
 
 func (p sourcesPage) Init() tea.Cmd {
@@ -88,7 +85,6 @@ func (p sourcesPage) Update(msg tea.Msg) (Page, tea.Cmd) {
 			return p, nil
 		}
 		p.state = msg.state
-		p.runtimePath = msg.path
 		p.clampCursor()
 		if len(msg.report.Issues) > 0 {
 			p.status = fmt.Sprintf("Loaded with %d repaired state issues", len(msg.report.Issues))
@@ -104,7 +100,6 @@ func (p sourcesPage) Update(msg tea.Msg) (Page, tea.Cmd) {
 			return p, nil
 		}
 		p.state = msg.state
-		p.runtimePath = msg.path
 		p.nameInput = ""
 		p.input = ""
 		p.focused = false
@@ -247,11 +242,8 @@ func (p sourcesPage) View(width, _ int) string {
 	}
 	nameWidth := min(48, max(width-lipgloss.Width("  Name: []")-1, 1))
 	subWidth := min(48, max(width-lipgloss.Width("  Sub:  []")-1, 1))
-	pathWidth := max(width-lipgloss.Width("  Config: ")-1, 1)
 	lines := []string{
 		titleStyle.Render("Sources"),
-		labelStyle.Render("  State: ") + valueStyle.Render(padOrTruncate(p.store.Path, pathWidth+1)),
-		labelStyle.Render("  Config: ") + valueStyle.Render(padOrTruncate(p.runtimePath, pathWidth)),
 		labelStyle.Render("  Name: ") + valueStyle.Render("["+padOrTruncate(name, nameWidth)+"]"),
 		labelStyle.Render("  Sub:  ") + valueStyle.Render("["+padOrTruncate(input, subWidth)+"]"),
 		labelStyle.Render("  Press a to add • Enter confirm • Esc cancel"),
@@ -344,11 +336,11 @@ func (p sourcesPage) addSource() tea.Cmd {
 		if err := store.Save(state); err != nil {
 			return sourceAddedMsg{err: err}
 		}
-		path, err := runtimeconfig.Write(cfg.ConfigPath, generated)
+		_, err = runtimeconfig.Write(cfg.ConfigPath, generated)
 		if err != nil {
 			return sourceAddedMsg{state: state, err: err}
 		}
-		return sourceAddedMsg{state: state, source: source, nodes: len(result.Nodes), issues: len(result.Issues), path: path}
+		return sourceAddedMsg{state: state, source: source, nodes: len(result.Nodes), issues: len(result.Issues)}
 	}
 }
 
@@ -369,8 +361,8 @@ func (p sourcesPage) load() tea.Cmd {
 		if err != nil {
 			return sourcesLoadedMsg{state: state, report: report, err: err}
 		}
-		path, err := runtimeconfig.Write(cfg.ConfigPath, generated)
-		return sourcesLoadedMsg{state: state, report: report, path: path, err: err}
+		_, err = runtimeconfig.Write(cfg.ConfigPath, generated)
+		return sourcesLoadedMsg{state: state, report: report, err: err}
 	}
 }
 

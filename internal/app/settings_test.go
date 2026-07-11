@@ -1,6 +1,7 @@
 package app
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -9,11 +10,21 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+func TestSettingsShowsXDGStatePathAsReadOnly(t *testing.T) {
+	home := filepath.Join(t.TempDir(), "xdg")
+	t.Setenv("XDG_CONFIG_HOME", home)
+	p := newSettingsPage(config.Default()).(settingsPage)
+	view := p.View(120, 30)
+	if want := filepath.Join(home, "mihomo-tui", "state.json"); !containsText(view, want) {
+		t.Fatalf("settings view does not contain state path %q", want)
+	}
+}
+
 func TestSettingsOnlyExposesSupportedEditableFields(t *testing.T) {
 	p := newSettingsPage(config.Default()).(settingsPage)
 	view := p.View(80, 24)
 
-	for _, want := range []string{"HTTP Port", "SOCKS Port", "Mixed Port", "Config File", "Mihomo Bin"} {
+	for _, want := range []string{"HTTP Port", "SOCKS Port", "Mixed Port", "Config File", "State File", "Mihomo Bin"} {
 		if !containsText(view, want) {
 			t.Fatalf("settings view does not contain %q", want)
 		}

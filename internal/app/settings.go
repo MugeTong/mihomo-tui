@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"mihomo-tui/internal/config"
+	"mihomo-tui/internal/subscription"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -23,18 +24,23 @@ const (
 const settingsFieldCount = int(fieldBinaryPath) + 1
 
 type settingsPage struct {
-	cfg     config.Config
-	cursor  settingsField
-	editing bool
-	buffer  string
-	status  string
-	err     string
+	cfg       config.Config
+	statePath string
+	cursor    settingsField
+	editing   bool
+	buffer    string
+	status    string
+	err       string
 }
 
 type settingsSavedMsg struct{ err error }
 
 func newSettingsPage(cfg config.Config) Page {
-	return settingsPage{cfg: cfg, status: "Ready"}
+	statePath, err := subscription.DefaultStatePath()
+	if err != nil {
+		statePath = "Unavailable: " + err.Error()
+	}
+	return settingsPage{cfg: cfg, statePath: statePath, status: "Ready"}
 }
 
 func (p settingsPage) Init() tea.Cmd { return nil }
@@ -113,6 +119,7 @@ func (p settingsPage) View(_, _ int) string {
 		"",
 		headerStyle.Render("Advanced"),
 		p.renderField(fieldConfigPath, "Config File", p.cfg.ConfigPath),
+		p.renderReadOnly("State File", p.statePath),
 		p.renderField(fieldBinaryPath, "Mihomo Bin", p.cfg.BinaryPath),
 		"",
 		headerStyle.Render("About"),
