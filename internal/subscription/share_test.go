@@ -17,7 +17,7 @@ func TestImportShareLinksSupportsPrimarySchemes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Nodes) != 3 || len(result.Links) != 3 || len(result.Issues) != 0 {
+	if len(result.Nodes) != 3 || len(result.Issues) != 0 {
 		t.Fatalf("result = %+v", result)
 	}
 	if result.Nodes[0].Protocol != ProtocolShadowsocks || result.Nodes[0].Options["cipher"] != "aes-128-gcm" {
@@ -43,13 +43,33 @@ func TestImportShareLinksSupportsBase64Subscription(t *testing.T) {
 	}
 }
 
+func TestImportShareLinksSupportsAnyTLSAndHysteria2(t *testing.T) {
+	content := strings.Join([]string{
+		"anytls://any-password@any.example.test:443?sni=edge.example.test#AnyTLS",
+		"hysteria2://hy-password@hy.example.test:8443?sni=hy.example.test&insecure=1&obfs=salamander&obfs-password=mask#Hysteria2",
+	}, "\n")
+	result, err := ImportShareLinks([]byte(content), "modern")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Nodes) != 2 || len(result.Issues) != 0 {
+		t.Fatalf("result = %+v", result)
+	}
+	if result.Nodes[0].Protocol != ProtocolAnyTLS || result.Nodes[0].Options["password"] != "any-password" {
+		t.Fatalf("AnyTLS = %+v", result.Nodes[0])
+	}
+	if result.Nodes[1].Protocol != ProtocolHysteria2 || result.Nodes[1].Options["obfs"] != "salamander" {
+		t.Fatalf("Hysteria2 = %+v", result.Nodes[1])
+	}
+}
+
 func TestImportShareLinksSupportsVLESSReality(t *testing.T) {
 	link := "vless://00000000-0000-0000-0000-000000000001@reality.example.test:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.example.test&fp=chrome&pbk=test-public-key&sid=test-short-id&type=tcp#US-VLESS-Reality"
 	result, err := ImportShareLinks([]byte(link), "reality")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Nodes) != 1 || len(result.Links) != 1 || len(result.Issues) != 0 {
+	if len(result.Nodes) != 1 || len(result.Issues) != 0 {
 		t.Fatalf("result = %+v", result)
 	}
 	node := result.Nodes[0]

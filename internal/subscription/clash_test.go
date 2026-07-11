@@ -30,14 +30,11 @@ func TestImportClashYAMLImportsOnlyProxies(t *testing.T) {
 	if first.ID == "" {
 		t.Fatalf("node identity missing: %+v", first)
 	}
-	if len(result.Links) != 2 || result.Links[0].SourceID != "provider-a" || result.Links[0].NodeID != first.ID {
-		t.Fatalf("source-node links = %+v", result.Links)
-	}
 	if first.Options["password"] != "test-password" || first.Options["cipher"] != "aes-128-gcm" {
 		t.Fatalf("protocol options were not retained: %+v", first.Options)
 	}
-	if result.Nodes[1].Name != "Tokyo (2)" {
-		t.Fatalf("duplicate display name = %q, want Tokyo (2)", result.Nodes[1].Name)
+	if result.Nodes[1].Name != "Tokyo" {
+		t.Fatalf("duplicate display name = %q, want Tokyo", result.Nodes[1].Name)
 	}
 	for _, forbidden := range []string{"rules", "proxy-groups", "dns", "secret", "mixed-port"} {
 		if _, exists := first.Options[forbidden]; exists {
@@ -86,11 +83,8 @@ proxies:
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Nodes) != 1 || len(result.Issues) != 1 {
+	if len(result.Nodes) != 1 || result.Duplicates != 1 || len(result.Issues) != 0 {
 		t.Fatalf("result = %+v", result)
-	}
-	if !strings.Contains(result.Issues[0].Error(), "duplicate node") {
-		t.Fatalf("unexpected duplicate issue: %s", result.Issues[0].Error())
 	}
 }
 

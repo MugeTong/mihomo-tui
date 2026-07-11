@@ -8,6 +8,7 @@ const (
 	ProtocolShadowsocks Protocol = "ss"
 	ProtocolTrojan      Protocol = "trojan"
 	ProtocolVLESS       Protocol = "vless"
+	ProtocolAnyTLS      Protocol = "anytls"
 	ProtocolVMess       Protocol = "vmess"
 	ProtocolHysteria2   Protocol = "hysteria2"
 	ProtocolTUIC        Protocol = "tuic"
@@ -34,18 +35,9 @@ const (
 )
 
 type Source struct {
-	ID        string
-	Name      string
 	Type      SourceType
 	Location  string
-	Enabled   bool
 	UpdatedAt time.Time
-}
-
-type SourceNode struct {
-	SourceID string
-	NodeID   string
-	Alias    string
 }
 
 type PolicySelection struct {
@@ -54,9 +46,15 @@ type PolicySelection struct {
 }
 
 type ImportResult struct {
-	Nodes  []Node
-	Links  []SourceNode
-	Issues []ImportIssue
+	Nodes      []Node
+	Duplicates int
+	Issues     []ImportIssue
+}
+
+type MergeReport struct {
+	Added      int
+	Duplicates int
+	Renamed    int
 }
 
 type ImportIssue struct {

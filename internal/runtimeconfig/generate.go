@@ -84,7 +84,7 @@ func buildProxy(node subscription.Node, name string) (map[string]any, error) {
 }
 
 func normalizeShareOptions(proxy map[string]any, protocol subscription.Protocol) {
-	if value, ok := proxy["sni"]; ok {
+	if value, ok := proxy["sni"]; ok && protocol == subscription.ProtocolVLESS {
 		if _, exists := proxy["servername"]; !exists {
 			proxy["servername"] = value
 		}
@@ -123,6 +123,39 @@ func normalizeShareOptions(proxy map[string]any, protocol subscription.Protocol)
 			delete(proxy, "security")
 		}
 		delete(proxy, "encryption")
+	}
+	if protocol == subscription.ProtocolHysteria2 {
+		if insecure, ok := proxy["insecure"].(string); ok {
+			proxy["skip-cert-verify"] = insecure == "1" || strings.EqualFold(insecure, "true")
+			delete(proxy, "insecure")
+		}
+	}
+	if protocol == subscription.ProtocolAnyTLS {
+		if fingerprint, ok := proxy["fp"]; ok {
+			proxy["client-fingerprint"] = fingerprint
+			delete(proxy, "fp")
+		}
+		if insecure, ok := proxy["insecure"].(string); ok {
+			proxy["skip-cert-verify"] = insecure == "1" || strings.EqualFold(insecure, "true")
+			delete(proxy, "insecure")
+		}
+	}
+	if protocol == subscription.ProtocolTrojan {
+		proxy["tls"] = true
+		if fingerprint, ok := proxy["fp"]; ok {
+			proxy["client-fingerprint"] = fingerprint
+			delete(proxy, "fp")
+		}
+		if _, exists := proxy["sni"]; !exists {
+			if peer, ok := proxy["peer"]; ok {
+				proxy["sni"] = peer
+			}
+		}
+		delete(proxy, "peer")
+		if insecure, ok := proxy["allowInsecure"].(string); ok {
+			proxy["skip-cert-verify"] = insecure == "1" || strings.EqualFold(insecure, "true")
+			delete(proxy, "allowInsecure")
+		}
 	}
 	proxy["type"] = string(protocol)
 }

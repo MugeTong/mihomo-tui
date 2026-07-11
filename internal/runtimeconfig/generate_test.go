@@ -85,3 +85,46 @@ func TestGenerateWorksWithoutImportedNodes(t *testing.T) {
 		t.Fatalf("groups = %+v", document.Groups)
 	}
 }
+
+func TestGenerateNormalizesHysteria2ShareOptions(t *testing.T) {
+	state := subscription.NewState()
+	state.Nodes = []subscription.Node{{ID: "hy", Name: "Hysteria", Protocol: subscription.ProtocolHysteria2, Server: "hy.example.test", Port: 443, Options: map[string]any{
+		"password": "secret", "sni": "edge.example.test", "insecure": "1", "obfs": "salamander", "obfs-password": "mask",
+	}}}
+	data, err := Generate(config.Default(), state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document generatedDocument
+	if err := yaml.Unmarshal(data, &document); err != nil {
+		t.Fatal(err)
+	}
+	proxy := document.Proxies[0]
+	if proxy["type"] != "hysteria2" || proxy["sni"] != "edge.example.test" || proxy["skip-cert-verify"] != true || proxy["obfs"] != "salamander" {
+		t.Fatalf("Hysteria2 proxy = %+v", proxy)
+	}
+}
+
+func TestGenerateNormalizesTrojanShareAliases(t *testing.T) {
+	state := subscription.NewState()
+	state.Nodes = []subscription.Node{{ID: "trojan", Name: "Trojan", Protocol: subscription.ProtocolTrojan, Server: "trojan.example.test", Port: 443, Options: map[string]any{
+		"password": "secret", "peer": "edge.example.test", "fp": "chrome", "allowInsecure": "1",
+	}}}
+	data, err := Generate(config.Default(), state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document generatedDocument
+	if err := yaml.Unmarshal(data, &document); err != nil {
+		t.Fatal(err)
+	}
+	proxy := document.Proxies[0]
+	if proxy["tls"] != true || proxy["sni"] != "edge.example.test" || proxy["client-fingerprint"] != "chrome" || proxy["skip-cert-verify"] != true {
+		t.Fatalf("Trojan proxy = %+v", proxy)
+	}
+	for _, alias := range []string{"peer", "fp", "allowInsecure"} {
+		if _, exists := proxy[alias]; exists {
+			t.Fatalf("alias %q leaked into proxy: %+v", alias, proxy)
+		}
+	}
+}

@@ -33,13 +33,12 @@ func ImportShareLinks(data []byte, sourceID string) (ImportResult, error) {
 			continue
 		}
 		if _, duplicate := seen[node.ID]; duplicate {
-			result.Issues = append(result.Issues, ImportIssue{Index: index, Name: node.Name, Err: fmt.Errorf("duplicate node ignored")})
+			result.Duplicates++
 			index++
 			continue
 		}
 		seen[node.ID] = struct{}{}
 		result.Nodes = append(result.Nodes, node)
-		result.Links = append(result.Links, SourceNode{SourceID: sourceID, NodeID: node.ID, Alias: node.Name})
 		index++
 	}
 	if len(result.Nodes) == 0 {
@@ -71,6 +70,10 @@ func parseShareLink(value string) (Node, error) {
 		return parseUserLink(parsed, ProtocolTrojan, "password")
 	case "vless":
 		return parseUserLink(parsed, ProtocolVLESS, "uuid")
+	case "anytls":
+		return parseUserLink(parsed, ProtocolAnyTLS, "password")
+	case "hysteria2", "hy2":
+		return parseUserLink(parsed, ProtocolHysteria2, "password")
 	default:
 		return Node{}, fmt.Errorf("unsupported share link scheme %q", parsed.Scheme)
 	}

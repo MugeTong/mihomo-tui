@@ -2,60 +2,45 @@ package subscription
 
 import "testing"
 
-func TestReconcileRepairsIDsAndDropsDanglingReferences(t *testing.T) {
-	node := Node{
-		ID:       "tampered-id",
-		Name:     "Tokyo",
-		Protocol: ProtocolTrojan,
-		Server:   "jp.example.test",
-		Port:     443,
-		Options:  map[string]any{"password": "secret"},
+func TestAddImportDeduplicatesIDAndRenamesNameCollision(t *testing.T) {
+	old := Node{ID: "old", Name: "Tokyo", Protocol: ProtocolTrojan, Server: "old.example.test", Port: 443, Options: map[string]any{"password": "old"}}
+	next := Node{Name: "Tokyo", Protocol: ProtocolVLESS, Server: "new.example.test", Port: 8443, Options: map[string]any{"uuid": "new"}}
+	var err error
+	next.ID, err = stableNodeID(next)
+	if err != nil {
+		t.Fatal(err)
 	}
-	state := State{
-		Version: CurrentStateVersion,
-		Sources: []Source{{ID: "source-a", Name: "Provider", Type: SourceURL, Enabled: true}},
-		Nodes:   []Node{node},
-		Links: []SourceNode{
-			{SourceID: "source-a", NodeID: "tampered-id", Alias: "Tokyo"},
-			{SourceID: "missing", NodeID: "tampered-id"},
-		},
-		Selections: []PolicySelection{
-			{Policy: "Proxy", NodeID: "tampered-id"},
-			{Policy: "Missing", NodeID: "not-found"},
-		},
+	state := State{Version: CurrentStateVersion, Nodes: []Node{old}}
+	report, err := state.AddImport(nil, ImportResult{Nodes: []Node{next, old}})
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	report := state.Reconcile()
-	if len(report.Issues) == 0 {
-		t.Fatal("expected repair report")
+	if len(state.Nodes) != 2 || state.Nodes[1].Name != "Tokyo (2)" {
+		t.Fatalf("nodes = %+v", state.Nodes)
 	}
-	if len(state.Nodes) != 1 || state.Nodes[0].ID == "tampered-id" {
-		t.Fatalf("node ID was not repaired: %+v", state.Nodes)
-	}
-	wantID := state.Nodes[0].ID
-	if len(state.Links) != 1 || state.Links[0].NodeID != wantID {
-		t.Fatalf("links were not reconciled: %+v", state.Links)
-	}
-	if len(state.Selections) != 1 || state.Selections[0].NodeID != wantID {
-		t.Fatalf("selections were not reconciled: %+v", state.Selections)
+	if report.Added != 1 || report.Duplicates != 1 || report.Renamed != 1 {
+		t.Fatalf("report = %+v", report)
 	}
 }
 
-func TestReconcileMergesDuplicateNodes(t *testing.T) {
-	node := Node{Name: "Tokyo", Protocol: ProtocolVLESS, Server: "edge.example.test", Port: 443, Options: map[string]any{"uuid": "test"}}
-	node.ID = "first"
-	duplicate := node
-	duplicate.ID = "second"
-	duplicate.Name = "Renamed"
-	state := State{
-		Version: CurrentStateVersion,
-		Sources: []Source{{ID: "a", Name: "A", Type: SourceShare}},
-		Nodes:   []Node{node, duplicate},
-		Links:   []SourceNode{{SourceID: "a", NodeID: "first"}, {SourceID: "a", NodeID: "second"}},
+func TestAddImportDeduplicatesSourceURL(t *testing.T) {
+	state := NewState()
+	source := Source{Type: SourceURL, Location: "https://sub.example.test/token"}
+	if _, err := state.AddImport(&source, ImportResult{}); err != nil {
+		t.Fatal(err)
 	}
+	if _, err := state.AddImport(&source, ImportResult{}); err != nil {
+		t.Fatal(err)
+	}
+	if len(state.Sources) != 1 {
+		t.Fatalf("sources = %+v", state.Sources)
+	}
+}
 
-	state.Reconcile()
-	if len(state.Nodes) != 1 || len(state.Links) != 1 {
-		t.Fatalf("duplicates were not merged: nodes=%+v links=%+v", state.Nodes, state.Links)
+func TestReconcileDiscardsOldStateVersion(t *testing.T) {
+	state := State{Version: 1, Nodes: []Node{{Name: "Old"}}}
+	report := state.Reconcile()
+	if state.Version != CurrentStateVersion || len(state.Nodes) != 0 || len(report.Issues) != 1 {
+		t.Fatalf("state=%+v report=%+v", state, report)
 	}
 }

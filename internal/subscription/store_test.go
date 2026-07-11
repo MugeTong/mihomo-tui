@@ -12,14 +12,14 @@ func TestStoreRoundTripUsesPrivateAtomicFile(t *testing.T) {
 	node := Node{Name: "Tokyo", Protocol: ProtocolShadowsocks, Server: "jp.example.test", Port: 443, Options: map[string]any{"password": "secret"}}
 	state := State{
 		Version: CurrentStateVersion,
-		Sources: []Source{{ID: "source-a", Name: "Provider", Type: SourceShare, Enabled: true}},
+		Sources: []Source{{Type: SourceURL, Location: "https://sub.example.test/token"}},
 		Nodes:   []Node{node},
 	}
 	id, err := stableNodeID(node)
 	if err != nil {
 		t.Fatal(err)
 	}
-	state.Links = []SourceNode{{SourceID: "source-a", NodeID: id, Alias: "Tokyo"}}
+	state.Nodes[0].ID = id
 
 	if err := store.Save(state); err != nil {
 		t.Fatal(err)
@@ -36,7 +36,7 @@ func TestStoreRoundTripUsesPrivateAtomicFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(report.Issues) != 0 || len(loaded.Nodes) != 1 || len(loaded.Links) != 1 {
+	if len(report.Issues) != 0 || len(loaded.Nodes) != 1 || len(loaded.Sources) != 1 {
 		t.Fatalf("loaded state = %+v, report = %+v", loaded, report)
 	}
 	if loaded.Nodes[0].Options["password"] != "secret" {

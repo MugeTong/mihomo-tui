@@ -28,11 +28,8 @@ func ImportClashYAML(data []byte, sourceID string) (ImportResult, error) {
 
 	result := ImportResult{
 		Nodes: make([]Node, 0, len(document.Proxies)),
-		Links: make([]SourceNode, 0, len(document.Proxies)),
 	}
 	seenIDs := make(map[string]struct{}, len(document.Proxies))
-	usedNames := make(map[string]int, len(document.Proxies))
-
 	for index, raw := range document.Proxies {
 		node, err := normalizeClashNode(raw)
 		if err != nil {
@@ -43,19 +40,12 @@ func ImportClashYAML(data []byte, sourceID string) (ImportResult, error) {
 			})
 			continue
 		}
-		if _, exists := seenIDs[node.ID]; exists {
-			result.Issues = append(result.Issues, ImportIssue{
-				Index: index,
-				Name:  node.Name,
-				Err:   fmt.Errorf("duplicate node ignored"),
-			})
+		if _, duplicate := seenIDs[node.ID]; duplicate {
+			result.Duplicates++
 			continue
 		}
-
-		node.Name = uniqueName(node.Name, usedNames)
 		seenIDs[node.ID] = struct{}{}
 		result.Nodes = append(result.Nodes, node)
-		result.Links = append(result.Links, SourceNode{SourceID: sourceID, NodeID: node.ID, Alias: node.Name})
 	}
 
 	return result, nil
@@ -120,20 +110,12 @@ func stableNodeID(node Node) (string, error) {
 
 func supportedProtocol(protocol Protocol) bool {
 	switch protocol {
-	case ProtocolShadowsocks, ProtocolTrojan, ProtocolVLESS, ProtocolVMess,
+	case ProtocolShadowsocks, ProtocolTrojan, ProtocolVLESS, ProtocolAnyTLS, ProtocolVMess,
 		ProtocolHysteria2, ProtocolTUIC, ProtocolWireGuard:
 		return true
 	default:
 		return false
 	}
-}
-
-func uniqueName(name string, used map[string]int) string {
-	used[name]++
-	if used[name] == 1 {
-		return name
-	}
-	return fmt.Sprintf("%s (%d)", name, used[name])
 }
 
 func safeString(value any) string {
