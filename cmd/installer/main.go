@@ -11,6 +11,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"mihomo-tui/internal/config"
+	"mihomo-tui/internal/runtimeconfig"
+	"mihomo-tui/internal/subscription"
 )
 
 // The release build stages platform-specific files in payload before compiling
@@ -83,6 +87,12 @@ func install() error {
 	if err := writeInitialConfig(filepath.Join(configDir, "config.json"), corePath); err != nil {
 		return err
 	}
+	if err := writeInitialState(filepath.Join(configDir, "state.json")); err != nil {
+		return err
+	}
+	if err := writeInitialRuntimeConfig(filepath.Join(configDir, "config.yaml")); err != nil {
+		return err
+	}
 
 	fmt.Printf("Mihomo TUI %s installed successfully.\n", version)
 	fmt.Printf("  TUI:    %s\n", filepath.Join(binDir, "mhmt"))
@@ -150,20 +160,42 @@ func atomicWrite(destination string, mode fs.FileMode, write func(io.Writer) err
 }
 
 func writeInitialConfig(path, corePath string) error {
-	if _, err := os.Stat(path); err == nil {
-		return nil
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("inspect existing settings: %w", err)
-	}
 	data, err := json.MarshalIndent(map[string]string{"binary_path": corePath}, "", "  ")
 	if err != nil {
 		return fmt.Errorf("encode initial settings: %w", err)
 	}
 	data = append(data, '\n')
-	if err := os.WriteFile(path, data, 0o600); err != nil {
-		return fmt.Errorf("write initial settings: %w", err)
+	return writeMissing(path, data, 0o600)
+}
+
+func writeInitialState(path string) error {
+	data, err := json.MarshalIndent(subscription.NewState(), "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode initial subscription state: %w", err)
 	}
-	return nil
+	return writeMissing(path, append(data, '\n'), 0o600)
+}
+
+func writeInitialRuntimeConfig(path string) error {
+	cfg := config.Default()
+	cfg.ConfigPath = path
+	data, err := runtimeconfig.Generate(cfg, subscription.NewState())
+	if err != nil {
+		return fmt.Errorf("generate initial runtime config: %w", err)
+	}
+	return writeMissing(path, data, 0o600)
+}
+
+func writeMissing(path string, data []byte, mode fs.FileMode) error {
+	if _, err := os.Stat(path); err == nil {
+		return nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("inspect existing file %s: %w", path, err)
+	}
+	return atomicWrite(path, mode, func(writer io.Writer) error {
+		_, err := writer.Write(data)
+		return err
+	})
 }
 
 func xdgHome(environment, fallback string) (string, error) {
