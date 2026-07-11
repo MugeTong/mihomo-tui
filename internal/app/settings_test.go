@@ -28,7 +28,7 @@ func TestSettingsOnlyExposesSupportedEditableFields(t *testing.T) {
 func TestSettingsAboutIncludesCreditsAndHomepage(t *testing.T) {
 	p := newSettingsPage(config.Default()).(settingsPage)
 	view := p.View(100, 30)
-	for _, want := range []string{"GPL-3.0-only", "Mihomo contributors", "Shadowrocket", "github.com/MugeTong/mihomo-tui"} {
+	for _, want := range []string{"GPL-3.0-only", "Mihomo contributors", "Bubble Tea", "Shadowrocket", "github.com/MugeTong/mihomo-tui"} {
 		if !containsText(view, want) {
 			t.Fatalf("about view does not contain %q", want)
 		}

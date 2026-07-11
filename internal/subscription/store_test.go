@@ -12,7 +12,7 @@ func TestStoreRoundTripUsesPrivateAtomicFile(t *testing.T) {
 	node := Node{Name: "Tokyo", Protocol: ProtocolShadowsocks, Server: "jp.example.test", Port: 443, Options: map[string]any{"password": "secret"}}
 	state := State{
 		Version: CurrentStateVersion,
-		Sources: []Source{{ID: "source-a", Name: "Provider", Type: SourcePaste, Enabled: true}},
+		Sources: []Source{{ID: "source-a", Name: "Provider", Type: SourceShare, Enabled: true}},
 		Nodes:   []Node{node},
 	}
 	id, err := stableNodeID(node)

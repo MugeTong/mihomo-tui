@@ -29,10 +29,8 @@ type Node struct {
 type SourceType string
 
 const (
-	SourceURL    SourceType = "url"
-	SourceFile   SourceType = "file"
-	SourcePaste  SourceType = "paste"
-	SourceManual SourceType = "manual"
+	SourceURL   SourceType = "url"
+	SourceShare SourceType = "share"
 )
 
 type Source struct {

@@ -23,6 +23,51 @@ func NewState() State {
 	return State{Version: CurrentStateVersion}
 }
 
+func (s *State) AddImport(source Source, result ImportResult) error {
+	if strings.TrimSpace(source.ID) == "" || strings.TrimSpace(source.Name) == "" || !validSourceType(source.Type) {
+		return fmt.Errorf("invalid source metadata")
+	}
+	for _, existing := range s.Sources {
+		if existing.ID == source.ID {
+			return fmt.Errorf("source %q already exists", source.ID)
+		}
+	}
+
+	knownNodes := make(map[string]struct{}, len(s.Nodes)+len(result.Nodes))
+	for _, node := range s.Nodes {
+		knownNodes[node.ID] = struct{}{}
+	}
+	for _, node := range result.Nodes {
+		if err := validateNode(node); err != nil {
+			return fmt.Errorf("invalid imported node %s: %w", safeNodeName(node.Name), err)
+		}
+		if _, exists := knownNodes[node.ID]; !exists {
+			s.Nodes = append(s.Nodes, node)
+			knownNodes[node.ID] = struct{}{}
+		}
+	}
+
+	knownLinks := make(map[string]struct{}, len(s.Links)+len(result.Links))
+	for _, link := range s.Links {
+		knownLinks[link.SourceID+"\x00"+link.NodeID] = struct{}{}
+	}
+	for _, link := range result.Links {
+		if link.SourceID != source.ID {
+			return fmt.Errorf("import link belongs to a different source")
+		}
+		if _, exists := knownNodes[link.NodeID]; !exists {
+			return fmt.Errorf("import link references a missing node")
+		}
+		key := link.SourceID + "\x00" + link.NodeID
+		if _, exists := knownLinks[key]; !exists {
+			s.Links = append(s.Links, link)
+			knownLinks[key] = struct{}{}
+		}
+	}
+	s.Sources = append(s.Sources, source)
+	return nil
+}
+
 // Reconcile validates references, recalculates node IDs, merges duplicate
 // nodes, and removes dangling links and selections.
 func (s *State) Reconcile() ReconcileReport {
@@ -140,7 +185,7 @@ func validateNode(node Node) error {
 
 func validSourceType(sourceType SourceType) bool {
 	switch sourceType {
-	case SourceURL, SourceFile, SourcePaste, SourceManual:
+	case SourceURL, SourceShare:
 		return true
 	default:
 		return false

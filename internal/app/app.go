@@ -40,6 +40,9 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		if m.inputActive() && msg.String() != "ctrl+c" {
+			break
+		}
 		switch msg.String() {
 		case "ctrl+c":
 			if m.stopping {
@@ -48,9 +51,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.stopping = true
 			return m, m.stopCoreAndQuit()
 		case "q":
-			if m.inputActive() {
-				break
-			}
 			return m, tea.Quit
 		case "tab":
 			m.nextPage()
@@ -132,7 +132,7 @@ func (m model) View() string {
 
 	title := titleStyle.Render(" Mihomo TUI")
 	helpWidth := max(innerWidth-lipgloss.Width(title)-1, 0)
-	helpText := truncateCells(m.currentPage().Help()+" • tab page • q leave • ctrl+c stop & leave", helpWidth)
+	helpText := truncateCells("tab switch • q leave • ^C stop", helpWidth)
 	help := helpStyle.Render(helpText)
 	rightSide := help
 	gap := max(innerWidth-lipgloss.Width(title)-lipgloss.Width(rightSide), 0)

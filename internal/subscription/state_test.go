@@ -13,7 +13,7 @@ func TestReconcileRepairsIDsAndDropsDanglingReferences(t *testing.T) {
 	}
 	state := State{
 		Version: CurrentStateVersion,
-		Sources: []Source{{ID: "source-a", Name: "Provider", Type: SourceFile, Enabled: true}},
+		Sources: []Source{{ID: "source-a", Name: "Provider", Type: SourceURL, Enabled: true}},
 		Nodes:   []Node{node},
 		Links: []SourceNode{
 			{SourceID: "source-a", NodeID: "tampered-id", Alias: "Tokyo"},
@@ -49,7 +49,7 @@ func TestReconcileMergesDuplicateNodes(t *testing.T) {
 	duplicate.Name = "Renamed"
 	state := State{
 		Version: CurrentStateVersion,
-		Sources: []Source{{ID: "a", Name: "A", Type: SourcePaste}},
+		Sources: []Source{{ID: "a", Name: "A", Type: SourceShare}},
 		Nodes:   []Node{node, duplicate},
 		Links:   []SourceNode{{SourceID: "a", NodeID: "first"}, {SourceID: "a", NodeID: "second"}},
 	}

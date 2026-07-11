@@ -122,6 +122,7 @@ func (p settingsPage) View(_, _ int) string {
 		p.renderReadOnly("License", "GPL-3.0-only"),
 		p.renderReadOnly("Homepage", "github.com/MugeTong/mihomo-tui"),
 		p.renderReadOnly("Thanks", "Mihomo contributors"),
+		p.renderReadOnly("Built with", "Bubble Tea by Charmbracelet"),
 		p.renderReadOnly("Inspired by", "Shadowrocket"),
 	}
 	return strings.Join(lines, "\n")

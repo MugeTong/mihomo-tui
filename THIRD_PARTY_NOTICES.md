@@ -15,6 +15,17 @@ When a Mihomo binary is distributed with Mihomo TUI, the release must identify
 the exact Mihomo version and provide the corresponding source code, or a valid
 written offer/source location as required by GPL-3.0.
 
+## Bubble Tea
+
+Mihomo TUI is built with Bubble Tea, the terminal user interface framework by
+Charmbracelet. We thank the Bubble Tea contributors for making expressive,
+keyboard-first terminal applications approachable in Go.
+
+Bubble Tea is copyright Charmbracelet, Inc. and its contributors and is
+licensed under the MIT License:
+
+https://github.com/charmbracelet/bubbletea
+
 ## Shadowrocket
 
 Mihomo TUI is inspired in part by Shadowrocket's approachable policy and proxy

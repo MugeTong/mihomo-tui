@@ -32,6 +32,21 @@ func TestRulesPageDoesNotOverflowRootFrame(t *testing.T) {
 	}
 }
 
+func TestTabBelongsToActivePageInput(t *testing.T) {
+	manager := &recordingManager{}
+	m := newModel(nil, manager, config.Default())
+	m.cursor = int(pageSources)
+	sources := m.currentPage().(sourcesPage)
+	sources.focused = true
+	m.pages[m.cursor].page = sources
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyTab})
+	got := updated.(model)
+	if got.cursor != int(pageSources) {
+		t.Fatal("tab switched page while source input was active")
+	}
+}
+
 func (m *recordingManager) Status() core.Status           { return core.StatusRunning }
 func (m *recordingManager) Start(context.Context) error   { return nil }
 func (m *recordingManager) Restart(context.Context) error { return nil }

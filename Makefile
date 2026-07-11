@@ -7,6 +7,7 @@ define copy-licenses
 	@cp LICENSE $(1)/LICENSE
 	@cp THIRD_PARTY_NOTICES.md $(1)/THIRD_PARTY_NOTICES.md
 	@cp licenses/mihomo-GPL-3.0.txt $(1)/licenses/mihomo-GPL-3.0.txt
+	@cp licenses/bubbletea-MIT.txt $(1)/licenses/bubbletea-MIT.txt
 endef
 
 # Debug commands
