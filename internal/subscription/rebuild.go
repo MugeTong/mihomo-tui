@@ -18,9 +18,9 @@ func Rebuild(sources []Source, fetcher Fetcher) ([]Node, RebuildReport, error) {
 		var err error
 		switch source.Type {
 		case SourceURL:
-			result, err = fetcher.Import(source.Location, "url")
+			result, err = fetcher.Import(source.Location)
 		case SourceURI:
-			result, err = ImportShareLinks([]byte(source.Location), "uri")
+			result, err = ImportShareLinks([]byte(source.Location))
 		default:
 			err = fmt.Errorf("unsupported source type %q", source.Type)
 		}

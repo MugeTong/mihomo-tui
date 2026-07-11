@@ -1,10 +1,11 @@
 package app
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
+	"os"
 	"strings"
-	"time"
 
 	"mihomo-tui/internal/config"
 	"mihomo-tui/internal/runtimeconfig"
@@ -23,6 +24,7 @@ type sourcesPage struct {
 	focused     bool
 	loading     bool
 	initialized bool
+	nodeCount   int
 	status      string
 	err         string
 }
@@ -30,6 +32,7 @@ type sourcesPage struct {
 type sourcesLoadedMsg struct {
 	state  subscription.State
 	report subscription.ReconcileReport
+	nodes  int
 	err    error
 }
 
@@ -80,6 +83,7 @@ func (p sourcesPage) Update(msg tea.Msg) (Page, tea.Cmd) {
 			return p, nil
 		}
 		p.state = msg.state
+		p.nodeCount = msg.nodes
 		if len(msg.report.Issues) > 0 {
 			p.status = fmt.Sprintf("Loaded with %d repaired state issues", len(msg.report.Issues))
 		}
@@ -88,6 +92,7 @@ func (p sourcesPage) Update(msg tea.Msg) (Page, tea.Cmd) {
 		p.initialized = true
 		if msg.state.Version != 0 {
 			p.state = msg.state
+			p.nodeCount = len(msg.state.Nodes)
 		}
 		if msg.err != nil {
 			p.err = msg.err.Error()
@@ -151,19 +156,25 @@ func (p sourcesPage) View(width, _ int) string {
 	inputWidth := min(64, max(width-lipgloss.Width("  Sub:  []")-1, 1))
 	lines := []string{
 		titleStyle.Render("Sources"),
+		"",
 		labelStyle.Render("  Sub:  ") + valueStyle.Render("["+padOrTruncate(input, inputWidth)+"]"),
 		labelStyle.Render("  Press a to add • Enter confirm • Esc cancel"),
 		"",
-		headerStyle.Render("Subscriptions"),
+		titleStyle.Render("Subscriptions"),
+		"",
 	}
 	if len(p.state.Sources) == 0 {
-		lines = append(lines, labelStyle.Render("  No subscription URLs added"))
+		if p.initialized {
+			lines = append(lines, labelStyle.Render("  No subscription URLs added"))
+		} else {
+			lines = append(lines, labelStyle.Render("  Loading saved sources…"))
+		}
 	} else {
 		for _, source := range p.state.Sources {
 			lines = append(lines, valueStyle.Render("  "+padOrTruncate(displaySource(source.Location), max(width-3, 1))))
 		}
 	}
-	lines = append(lines, "", headerStyle.Render("Nodes"), valueStyle.Render(fmt.Sprintf("  %d managed nodes", len(p.state.Nodes))))
+	lines = append(lines, "", titleStyle.Render("Nodes"), "", valueStyle.Render(fmt.Sprintf("  %d managed nodes", p.nodeCount)))
 	return strings.Join(lines, "\n")
 }
 
@@ -187,7 +198,7 @@ func (p sourcesPage) addSource() tea.Cmd {
 	state := cloneSubscriptionState(p.state)
 	store, cfg := p.store, p.cfg
 	return func() tea.Msg {
-		source := subscription.Source{Type: subscription.SourceURI, Location: input, UpdatedAt: time.Now()}
+		source := subscription.Source{Type: subscription.SourceURI, Location: input}
 		if parsed, parseErr := url.Parse(input); parseErr == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") {
 			source.Type = subscription.SourceURL
 		}
@@ -213,9 +224,6 @@ func (p sourcesPage) refresh() tea.Cmd {
 			return sourceAddedMsg{state: state, err: err}
 		}
 		state.Nodes = nodes
-		for index := range state.Sources {
-			state.Sources[index].UpdatedAt = time.Now()
-		}
 		if err := saveRuntime(store, cfg, state); err != nil {
 			return sourceAddedMsg{state: state, err: err}
 		}
@@ -230,13 +238,14 @@ func (p sourcesPage) load() tea.Cmd {
 		if err == nil && len(report.Issues) > 0 {
 			err = store.Save(state)
 		}
-		if err == nil && len(state.Sources) > 0 {
-			state.Nodes, _, err = subscription.Rebuild(state.Sources, subscription.DefaultFetcher())
-		}
+		nodes := 0
 		if err == nil {
-			err = writeRuntime(cfg, state)
+			nodes, err = runtimeconfig.SnapshotNodeCount(cfg.ConfigPath)
+			if errors.Is(err, os.ErrNotExist) {
+				err = nil
+			}
 		}
-		return sourcesLoadedMsg{state: state, report: report, err: err}
+		return sourcesLoadedMsg{state: state, report: report, nodes: nodes, err: err}
 	}
 }
 
@@ -246,15 +255,6 @@ func saveRuntime(store subscription.Store, cfg config.Config, state subscription
 		return err
 	}
 	if err := store.Save(state); err != nil {
-		return err
-	}
-	_, err = runtimeconfig.Write(cfg.ConfigPath, generated)
-	return err
-}
-
-func writeRuntime(cfg config.Config, state subscription.State) error {
-	generated, err := runtimeconfig.Generate(cfg, state)
-	if err != nil {
 		return err
 	}
 	_, err = runtimeconfig.Write(cfg.ConfigPath, generated)

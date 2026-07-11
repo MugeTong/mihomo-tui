@@ -36,7 +36,7 @@ func DefaultFetcher() Fetcher {
 	return fetcher
 }
 
-func (f Fetcher) Import(location, sourceID string) (ImportResult, error) {
+func (f Fetcher) Import(location string) (ImportResult, error) {
 	parsed, err := url.Parse(strings.TrimSpace(location))
 	if err != nil || validateRemoteURL(parsed, f.AllowPrivate) != nil {
 		return ImportResult{}, fmt.Errorf("subscription URL must be a valid HTTP or HTTPS URL")
@@ -69,7 +69,7 @@ func (f Fetcher) Import(location, sourceID string) (ImportResult, error) {
 	if len(data) > maxSubscriptionBytes {
 		return ImportResult{}, fmt.Errorf("subscription response exceeds 8 MiB")
 	}
-	return ImportContent(data, sourceID)
+	return ImportContent(data)
 }
 
 func (f Fetcher) safeDialContext(dialer *net.Dialer) func(context.Context, string, string) (net.Conn, error) {

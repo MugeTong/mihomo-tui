@@ -66,13 +66,6 @@ var (
 	sectionStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("241"))
 
-	sectionCursorStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("205")).
-				Bold(true)
-
-	sectionSepStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("238"))
-
 	nodeActiveStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("120"))
 

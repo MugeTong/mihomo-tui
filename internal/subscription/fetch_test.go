@@ -26,7 +26,7 @@ rules:
 		return &http.Response{StatusCode: 200, Status: "200 OK", Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
 	})}
 	fetcher := Fetcher{Client: client}
-	result, err := fetcher.Import("https://subscription.example.test/token", "provider")
+	result, err := fetcher.Import("https://subscription.example.test/token")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +46,7 @@ func TestFetcherRejectsPrivateAndCredentialedURLs(t *testing.T) {
 		"https://user:password@example.test/sub",
 		"file:///tmp/subscription",
 	} {
-		if _, err := fetcher.Import(location, "provider"); err == nil {
+		if _, err := fetcher.Import(location); err == nil {
 			t.Fatalf("unsafe URL %q unexpectedly accepted", location)
 		}
 	}

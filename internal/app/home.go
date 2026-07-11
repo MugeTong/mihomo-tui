@@ -9,24 +9,16 @@ import (
 	"mihomo-tui/internal/config"
 	"mihomo-tui/internal/core"
 	"mihomo-tui/internal/mihomo"
+	"mihomo-tui/internal/runtimeconfig"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-)
-
-type homeSection int
-
-const (
-	sectionStatus homeSection = iota
-	sectionGroups
-	sectionNodes
 )
 
 type homePage struct {
 	client      *mihomo.Client
 	coreManager core.Manager
 	cfg         config.Config
-	section     homeSection
 	proxyMode   string
 	groups      []mihomo.ProxyGroup
 	groupCursor int
@@ -35,11 +27,13 @@ type homePage struct {
 	loading     bool
 	status      string
 	err         string
+	snapshot    bool
 }
 
 type proxyGroupsLoadedMsg struct {
-	groups []mihomo.ProxyGroup
-	err    error
+	groups   []mihomo.ProxyGroup
+	snapshot bool
+	err      error
 }
 
 type proxySelectedMsg struct {
@@ -97,7 +91,11 @@ func (p homePage) Update(msg tea.Msg) (Page, tea.Cmd) {
 		}
 		p.err = ""
 		p.status = "Controller connected"
-		p.groups = msg.groups
+		p.groups = visibleHomeGroups(msg.groups)
+		p.snapshot = msg.snapshot
+		if msg.snapshot {
+			p.status = "Loaded generated config snapshot"
+		}
 		p.clampCursors()
 	case proxySelectedMsg:
 		p.loading = false
@@ -157,9 +155,7 @@ func (p homePage) Update(msg tea.Msg) (Page, tea.Cmd) {
 		p.err = ""
 		p.status = "Core stopped"
 		if p.useManaged() {
-			p.groups = nil
-			p.nodeCursor = 0
-			p.nodeOffset = 0
+			return p, p.loadProxyGroups()
 		}
 	}
 
@@ -169,16 +165,12 @@ func (p homePage) Update(msg tea.Msg) (Page, tea.Cmd) {
 func (p homePage) updateKey(key tea.KeyMsg) (Page, tea.Cmd) {
 	switch key.String() {
 	case "j", "down":
-		if p.section < sectionNodes {
-			p.section++
-		} else if p.nodeCursor < len(p.visibleNodes())-1 {
+		if p.nodeCursor < len(p.visibleNodes())-1 {
 			p.nodeCursor++
 		}
 	case "k", "up":
-		if p.section == sectionNodes && p.nodeCursor > 0 {
+		if p.nodeCursor > 0 {
 			p.nodeCursor--
-		} else if p.section > sectionStatus {
-			p.section--
 		}
 	case "h", "left":
 		if p.groupCursor > 0 {
@@ -193,26 +185,30 @@ func (p homePage) updateKey(key tea.KeyMsg) (Page, tea.Cmd) {
 			p.nodeOffset = 0
 		}
 	case "enter":
-		if p.section == sectionNodes {
-			return p.startLoading("Selecting proxy"), p.selectCurrentProxy()
+		if p.snapshot {
+			p.err = "Start Mihomo core before selecting a proxy"
+			return p, nil
 		}
+		return p.startLoading("Selecting proxy"), p.selectCurrentProxy()
 	case " ":
-		if p.section == sectionStatus {
-			return p.toggleCore()
-		}
+		return p.toggleCore()
 	case "x":
-		if p.section == sectionStatus {
-			return p.startLoading("Stopping core"), p.stopCore()
-		}
+		return p.startLoading("Stopping core"), p.stopCore()
 	case "r":
 		return p.startLoading("Refreshing"), p.loadProxyGroups()
 	case "R":
 		return p.startLoading("Reloading config"), p.reloadConfig()
 	case "d":
-		if p.section == sectionNodes {
-			return p.startLoading("Testing delay"), p.testCurrentProxyDelay()
+		if p.snapshot {
+			p.err = "Start Mihomo core before testing delay"
+			return p, nil
 		}
+		return p.startLoading("Testing delay"), p.testCurrentProxyDelay()
 	case "D":
+		if p.snapshot {
+			p.err = "Start Mihomo core before testing delay"
+			return p, nil
+		}
 		return p.startLoading("Testing group delay"), p.testCurrentGroupDelay()
 	}
 
@@ -223,38 +219,32 @@ func (p homePage) View(width, height int) string {
 	contentWidth := max(width-4, 10)
 
 	statusSection := p.renderStatusSection(contentWidth)
-	sep := sectionSepStyle.Render(strings.Repeat("-", contentWidth))
 	groupSection := p.renderGroupsSection(contentWidth)
 	nodesHeight := p.nodesViewportHeight(height)
 	p.ensureNodeVisible(nodesHeight)
 	nodesSection := p.renderNodesSection(contentWidth, nodesHeight)
 
-	return statusSection + "\n\n" + sep + "\n\n" + groupSection + "\n\n" + nodesSection
+	return statusSection + "\n\n" + groupSection + "\n\n" + nodesSection
 }
 
 func (p homePage) Help() string {
-	return "arrows navigate • space core • enter select • d delay • D group"
+	return "left/right group • up/down node • enter select • space core"
 }
 
 func (p homePage) renderStatusSection(width int) string {
-	marker := "  "
-	titleSt := sectionStyle
-	if p.section == sectionStatus {
-		marker = "> "
-		titleSt = sectionCursorStyle
-	}
-
 	action := btnDisabledStyle.Render(strings.Title(p.cfg.SourceMode))
 	if p.loading {
 		action = btnDisabledStyle.Render("Loading")
 	}
 
-	title := titleSt.Render(marker + "Status")
+	title := titleStyle.Render("Status")
 	gap := max(width-lipgloss.Width(title)-lipgloss.Width(action), 1)
 	titleLine := title + strings.Repeat(" ", gap) + action
 
 	status := offStyle.Render("Disconnected")
-	if p.err == "" && len(p.groups) > 0 {
+	if p.snapshot && len(p.groups) > 0 {
+		status = valueStyle.Render("Config Ready")
+	} else if p.err == "" && len(p.groups) > 0 {
 		status = onStyle.Render("Connected")
 	}
 
@@ -263,20 +253,13 @@ func (p homePage) renderStatusSection(width int) string {
 		labelStyle.Render("  Mode:      ") + valueStyle.Render(p.proxyMode) + "\n" +
 		labelStyle.Render("  Source:    ") + valueStyle.Render(p.cfg.SourceMode)
 
-	return titleLine + "\n" + body
+	return titleLine + "\n\n" + body
 }
 
 func (p homePage) renderGroupsSection(width int) string {
-	marker := "  "
-	titleSt := sectionStyle
-	if p.section == sectionGroups {
-		marker = "> "
-		titleSt = sectionCursorStyle
-	}
-
-	title := titleSt.Render(marker + "Proxy Groups")
+	title := titleStyle.Render("Proxy Groups")
 	if len(p.groups) == 0 {
-		return title + "\n" + labelStyle.Render("  No proxy groups loaded")
+		return title + "\n\n" + labelStyle.Render("  No proxy groups loaded")
 	}
 
 	groupLabels := make([]string, 0, len(p.groups))
@@ -293,18 +276,11 @@ func (p homePage) renderGroupsSection(width int) string {
 	}
 
 	line := strings.Join(groupLabels, tabSepStyle.Render(" "))
-	return title + "\n" + line
+	return title + "\n\n" + line
 }
 
 func (p homePage) renderNodesSection(width, height int) string {
-	marker := "  "
-	titleSt := sectionStyle
-	if p.section == sectionNodes {
-		marker = "> "
-		titleSt = sectionCursorStyle
-	}
-
-	title := titleSt.Render(marker + "Nodes")
+	title := titleStyle.Render("Nodes")
 	buttons := btnDisabledStyle.Render("Delay")
 	gap := max(width-lipgloss.Width(title)-lipgloss.Width(buttons), 1)
 	titleLine := title + strings.Repeat(" ", gap) + buttons
@@ -315,7 +291,7 @@ func (p homePage) renderNodesSection(width, height int) string {
 	if len(nodes) == 0 {
 		nodeList = labelStyle.Render("  No nodes loaded")
 	} else {
-		bodyHeight := max(height-1, 1)
+		bodyHeight := max(height-2, 1)
 		windowInfo := nodeWindow(bodyHeight, len(nodes), p.nodeCursor, p.nodeOffset)
 		p.nodeOffset = windowInfo.start
 		window := nodes[windowInfo.start:windowInfo.end]
@@ -348,7 +324,7 @@ func (p homePage) renderNodesSection(width, height int) string {
 		nodeList = strings.Join(lines, "\n")
 	}
 
-	return titleLine + "\n" + nodeList
+	return titleLine + "\n\n" + nodeList
 }
 
 func (p homePage) loadProxyGroups() tea.Cmd {
@@ -357,7 +333,8 @@ func (p homePage) loadProxyGroups() tea.Cmd {
 			return proxyGroupsLoadedMsg{groups: mockProxyGroups(), err: nil}
 		}
 		if p.useManaged() && p.coreStatus() != core.StatusRunning {
-			return proxyGroupsLoadedMsg{groups: nil, err: fmt.Errorf("core is %s", p.coreStatus())}
+			groups, err := runtimeconfig.LoadProxyGroups(p.cfg.ConfigPath)
+			return proxyGroupsLoadedMsg{groups: groups, snapshot: err == nil, err: err}
 		}
 		groups, err := p.client.ProxyGroups()
 		return proxyGroupsLoadedMsg{groups: groups, err: err}
@@ -493,10 +470,10 @@ func (p *homePage) ensureNodeVisible(height int) {
 }
 
 func (p homePage) nodesViewportHeight(contentHeight int) int {
-	usedByStatus := 3
-	usedBySeparator := 3
-	usedByGroups := 2
-	return max(contentHeight-usedByStatus-usedBySeparator-usedByGroups, 4)
+	// Status is six lines, groups are three, and the two section gaps each
+	// contribute one blank line.
+	const rowsBeforeNodes = 6 + 3 + 2
+	return max(contentHeight-rowsBeforeNodes, 1)
 }
 
 type nodeWindowInfo struct {
@@ -621,6 +598,35 @@ func (p homePage) coreStatus() core.Status {
 		return core.StatusUnavailable
 	}
 	return p.coreManager.Status()
+}
+
+func visibleHomeGroups(groups []mihomo.ProxyGroup) []mihomo.ProxyGroup {
+	result := make([]mihomo.ProxyGroup, 0, len(groups))
+	for _, group := range groups {
+		switch group.Name {
+		case "Final", "Direct", "DIRECT":
+			continue
+		}
+		members := group.Proxies[:0]
+		for _, proxy := range group.Proxies {
+			if proxy.Name != "DIRECT" {
+				members = append(members, proxy)
+			}
+		}
+		group.Proxies = members
+		all := group.All[:0]
+		for _, name := range group.All {
+			if name != "DIRECT" {
+				all = append(all, name)
+			}
+		}
+		group.All = all
+		if group.Now == "DIRECT" {
+			group.Now = ""
+		}
+		result = append(result, group)
+	}
+	return result
 }
 
 func (p homePage) toggleCore() (Page, tea.Cmd) {

@@ -9,10 +9,7 @@ import (
 	"strings"
 )
 
-func ImportShareLinks(data []byte, sourceID string) (ImportResult, error) {
-	if strings.TrimSpace(sourceID) == "" {
-		return ImportResult{}, fmt.Errorf("source ID is required")
-	}
+func ImportShareLinks(data []byte) (ImportResult, error) {
 	content := strings.TrimSpace(string(data))
 	if decoded, ok := decodeSubscriptionBase64(content); ok {
 		content = decoded
@@ -48,15 +45,15 @@ func ImportShareLinks(data []byte, sourceID string) (ImportResult, error) {
 	return result, nil
 }
 
-func ImportContent(data []byte, sourceID string) (ImportResult, error) {
+func ImportContent(data []byte) (ImportResult, error) {
 	content := strings.TrimSpace(string(data))
 	if decoded, ok := decodeSubscriptionBase64(content); ok {
 		content = decoded
 	}
 	if strings.Contains(content, "proxies:") {
-		return ImportClashYAML([]byte(content), sourceID)
+		return ImportClashYAML([]byte(content))
 	}
-	return ImportShareLinks([]byte(content), sourceID)
+	return ImportShareLinks([]byte(content))
 }
 
 func parseShareLink(value string) (Node, error) {

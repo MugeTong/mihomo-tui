@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"mihomo-tui/internal/runtimeconfig"
 	"mihomo-tui/internal/subscription"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -71,6 +72,26 @@ func TestSourcesPageDoesNotReloadAfterInitialization(t *testing.T) {
 	p.initialized = true
 	if cmd := p.Init(); cmd != nil {
 		t.Fatal("initialized Sources page reloaded on navigation")
+	}
+}
+
+func TestSourcesInitialLoadUsesOfflineSnapshot(t *testing.T) {
+	directory := t.TempDir()
+	store := subscription.Store{Path: filepath.Join(directory, "state.json")}
+	state := subscription.NewState()
+	state.Sources = []subscription.Source{{Type: subscription.SourceURL, Location: "https://offline.example.test/token"}}
+	if err := store.Save(state); err != nil {
+		t.Fatal(err)
+	}
+	p := newSourcesPageWithStore(store, nil).(sourcesPage)
+	configData := []byte("proxies:\n  - {name: Cached, type: trojan, server: example.test, port: 443}\n")
+	if _, err := runtimeconfig.Write(p.cfg.ConfigPath, configData); err != nil {
+		t.Fatal(err)
+	}
+	page, _ := p.Update(p.Init()())
+	p = page.(sourcesPage)
+	if p.err != "" || len(p.state.Sources) != 1 || p.nodeCount != 1 {
+		t.Fatalf("sources = %+v", p)
 	}
 }
 

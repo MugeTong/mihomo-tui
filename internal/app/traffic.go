@@ -34,17 +34,17 @@ func (p trafficPage) Update(msg tea.Msg) (Page, tea.Cmd) {
 }
 
 func (p trafficPage) View(width, _ int) string {
-	barWidth := max(width-14, 10)
+	barWidth := max(width-16, 10)
 
 	return headerStyle.Render("Traffic / Connections") + "\n" +
-		labelStyle.Render("Up:           ") + valueStyle.Render(p.uploadSpeed) + "\n" +
-		labelStyle.Render("Down:         ") + valueStyle.Render(p.downloadSpeed) + "\n" +
-		labelStyle.Render("Total Up:     ") + valueStyle.Render(p.totalUpload) + "\n" +
-		labelStyle.Render("Total Down:   ") + valueStyle.Render(p.totalDownload) + "\n\n" +
-		labelStyle.Render("Bandwidth:    ") + renderBar(barWidth, 0.0) + "\n\n" +
-		labelStyle.Render("Active Conn:  ") + valueStyle.Render(fmt.Sprintf("%d", p.connections)) + "\n" +
-		labelStyle.Render("TCP:          ") + valueStyle.Render("0") + "\n" +
-		labelStyle.Render("UDP:          ") + valueStyle.Render("0") + "\n"
+		labelStyle.Render("  Up:           ") + valueStyle.Render(p.uploadSpeed) + "\n" +
+		labelStyle.Render("  Down:         ") + valueStyle.Render(p.downloadSpeed) + "\n" +
+		labelStyle.Render("  Total Up:     ") + valueStyle.Render(p.totalUpload) + "\n" +
+		labelStyle.Render("  Total Down:   ") + valueStyle.Render(p.totalDownload) + "\n\n" +
+		labelStyle.Render("  Bandwidth:    ") + renderBar(barWidth, 0.0) + "\n\n" +
+		labelStyle.Render("  Active Conn:  ") + valueStyle.Render(fmt.Sprintf("%d", p.connections)) + "\n" +
+		labelStyle.Render("  TCP:          ") + valueStyle.Render("0") + "\n" +
+		labelStyle.Render("  UDP:          ") + valueStyle.Render("0") + "\n"
 }
 
 func (p trafficPage) Help() string {

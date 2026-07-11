@@ -1,7 +1,5 @@
 package subscription
 
-import "time"
-
 type Protocol string
 
 const (
@@ -35,9 +33,8 @@ const (
 )
 
 type Source struct {
-	Type      SourceType
-	Location  string
-	UpdatedAt time.Time
+	Type     SourceType
+	Location string
 }
 
 type PolicySelection struct {

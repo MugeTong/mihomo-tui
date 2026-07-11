@@ -12,7 +12,7 @@ func TestImportClashYAMLImportsOnlyProxies(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result, err := ImportClashYAML(data, "provider-a")
+	result, err := ImportClashYAML(data)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ proxies:
     server: example.test
     port: 70000
 `)
-	result, err := ImportClashYAML(data, "bad-provider")
+	result, err := ImportClashYAML(data)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ proxies:
   - {name: First Name, type: vless, server: edge.example.test, port: 443, uuid: 00000000-0000-0000-0000-000000000001}
   - {name: Renamed Node, type: vless, server: EDGE.EXAMPLE.TEST, port: 443, uuid: 00000000-0000-0000-0000-000000000001}
 `)
-	result, err := ImportClashYAML(data, "provider")
+	result, err := ImportClashYAML(data)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +89,7 @@ proxies:
 }
 
 func TestImportClashYAMLRejectsMalformedDocument(t *testing.T) {
-	_, err := ImportClashYAML([]byte("proxies: ["), "provider")
+	_, err := ImportClashYAML([]byte("proxies: ["))
 	if err == nil || !strings.Contains(err.Error(), "parse subscription YAML") {
 		t.Fatalf("error = %v", err)
 	}

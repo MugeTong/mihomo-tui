@@ -17,10 +17,7 @@ type clashDocument struct {
 
 // ImportClashYAML imports only the top-level proxies list. All other Clash or
 // Mihomo configuration sections are intentionally ignored.
-func ImportClashYAML(data []byte, sourceID string) (ImportResult, error) {
-	if strings.TrimSpace(sourceID) == "" {
-		return ImportResult{}, fmt.Errorf("source ID is required")
-	}
+func ImportClashYAML(data []byte) (ImportResult, error) {
 	var document clashDocument
 	if err := yaml.Unmarshal(data, &document); err != nil {
 		return ImportResult{}, fmt.Errorf("parse subscription YAML: %w", err)

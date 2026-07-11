@@ -13,7 +13,7 @@ func TestImportShareLinksSupportsPrimarySchemes(t *testing.T) {
 		"trojan://test-password@hk.example.test:443?sni=edge.example.test#Hong%20Kong",
 		"vless://00000000-0000-0000-0000-000000000001@us.example.test:8443?security=tls&type=ws#US",
 	}, "\n")
-	result, err := ImportShareLinks([]byte(content), "shared")
+	result, err := ImportShareLinks([]byte(content))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +34,7 @@ func TestImportShareLinksSupportsPrimarySchemes(t *testing.T) {
 func TestImportShareLinksSupportsBase64Subscription(t *testing.T) {
 	plain := "trojan://password@example.test:443#Node"
 	encoded := base64.StdEncoding.EncodeToString([]byte(plain))
-	result, err := ImportShareLinks([]byte(encoded), "encoded")
+	result, err := ImportShareLinks([]byte(encoded))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +48,7 @@ func TestImportShareLinksSupportsAnyTLSAndHysteria2(t *testing.T) {
 		"anytls://any-password@any.example.test:443?sni=edge.example.test#AnyTLS",
 		"hysteria2://hy-password@hy.example.test:8443?sni=hy.example.test&insecure=1&obfs=salamander&obfs-password=mask#Hysteria2",
 	}, "\n")
-	result, err := ImportShareLinks([]byte(content), "modern")
+	result, err := ImportShareLinks([]byte(content))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ func TestImportShareLinksSupportsAnyTLSAndHysteria2(t *testing.T) {
 
 func TestImportShareLinksSupportsVLESSReality(t *testing.T) {
 	link := "vless://00000000-0000-0000-0000-000000000001@reality.example.test:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.example.test&fp=chrome&pbk=test-public-key&sid=test-short-id&type=tcp#US-VLESS-Reality"
-	result, err := ImportShareLinks([]byte(link), "reality")
+	result, err := ImportShareLinks([]byte(link))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +95,7 @@ func TestImportShareLinksSupportsVLESSReality(t *testing.T) {
 }
 
 func TestImportShareLinksDoesNotLeakCredentialInIssue(t *testing.T) {
-	_, err := ImportShareLinks([]byte("trojan://do-not-log-this@missing-port.example.test"), "bad")
+	_, err := ImportShareLinks([]byte("trojan://do-not-log-this@missing-port.example.test"))
 	if err == nil {
 		t.Fatal("invalid link unexpectedly imported")
 	}
