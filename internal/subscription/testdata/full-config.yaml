@@ -1,0 +1,25 @@
+mixed-port: 7890
+external-controller: 127.0.0.1:9090
+secret: must-be-ignored
+dns:
+  enable: true
+proxies:
+  - name: Tokyo
+    type: ss
+    server: jp.example.test
+    port: 443
+    cipher: aes-128-gcm
+    password: test-password
+    udp: true
+  - name: Tokyo
+    type: trojan
+    server: hk.example.test
+    port: "8443"
+    password: another-test-password
+    sni: edge.example.test
+proxy-groups:
+  - name: Provider Controlled Group
+    type: select
+    proxies: [Tokyo]
+rules:
+  - MATCH,Provider Controlled Group
