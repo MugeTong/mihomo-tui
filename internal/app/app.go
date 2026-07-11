@@ -1,6 +1,7 @@
 package app
 
 import (
+	"path/filepath"
 	"strings"
 
 	"mihomo-tui/internal/config"
@@ -194,7 +195,19 @@ func StartTUI() error {
 		return err
 	}
 
-	coreManager := core.NewMockManager(core.StatusStopped)
+	settingsPath, err := config.Path()
+	if err != nil {
+		return err
+	}
+	appDir := filepath.Dir(settingsPath)
+	coreManager := core.NewProcessManager(core.ProcessOptions{
+		BinaryPath:        cfg.BinaryPath,
+		ConfigPath:        cfg.ConfigPath,
+		DataDir:           filepath.Join(appDir, "mihomo"),
+		PIDPath:           filepath.Join(appDir, "mihomo.pid"),
+		LogPath:           filepath.Join(appDir, "mihomo.log"),
+		ControllerAddress: config.ControllerAddress,
+	})
 	p := tea.NewProgram(newModel(client, coreManager, cfg), tea.WithAltScreen())
 	_, err = p.Run()
 	return err
