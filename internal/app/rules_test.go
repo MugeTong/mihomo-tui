@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -19,13 +20,90 @@ func TestRulesViewFitsTerminalWidth(t *testing.T) {
 	}
 }
 
+func TestDomainRuleMatchUsesFirstSupportedRule(t *testing.T) {
+	rules := []routingRule{
+		{Type: "DOMAIN", Value: "api.example.com", Policy: "Direct"},
+		{Type: "DOMAIN-SUFFIX", Value: "example.com", Policy: "Proxy"},
+		{Type: "DOMAIN-KEYWORD", Value: "example", Policy: "Keyword"},
+		{Type: "MATCH", Policy: "Final"},
+	}
+	tests := []struct {
+		domain string
+		policy string
+	}{
+		{"API.EXAMPLE.COM.", "Direct"},
+		{"www.example.com", "Proxy"},
+		{"notexample.net", "Keyword"},
+		{"other.net", "Final"},
+	}
+	for _, test := range tests {
+		matched, ok := matchDomainRule(test.domain, rules)
+		if !ok || matched.Policy != test.policy {
+			t.Fatalf("matchDomainRule(%q) = %+v, %v; want policy %s", test.domain, matched, ok, test.policy)
+		}
+	}
+}
+
+func TestRulesEnterChecksDomainAndShowsMatchedRule(t *testing.T) {
+	p := rulesPage{
+		rules: []routingRule{
+			{Type: "DOMAIN-SUFFIX", Value: "example.com", Policy: "Proxy"},
+			{Type: "MATCH", Policy: "Final"},
+		},
+		searching: true,
+		filter:    "www.example.com",
+	}
+	page, _ := p.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	p = page.(rulesPage)
+	if p.match == nil || p.match.Type != "DOMAIN-SUFFIX" {
+		t.Fatalf("matched rule = %+v", p.match)
+	}
+	if got := p.Message(); got != "www.example.com → DOMAIN-SUFFIX example.com → Proxy" {
+		t.Fatalf("message = %q", got)
+	}
+	if visible := p.visibleRules(); len(visible) != 1 || visible[0].Type != "DOMAIN-SUFFIX" {
+		t.Fatalf("visible rules = %+v", visible)
+	}
+}
+
+func TestRulesRejectsNonDomainInput(t *testing.T) {
+	p := rulesPage{searching: true, filter: "https://example.com/path"}
+	page, _ := p.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	p = page.(rulesPage)
+	if p.match != nil || !strings.Contains(p.status, "valid domain") {
+		t.Fatalf("invalid domain result = match %+v, status %q", p.match, p.status)
+	}
+}
+
 func TestRulesSearchBarShowsInputState(t *testing.T) {
 	p := newRulesPage().(rulesPage)
 	p.searching = true
 	p.filter = "github.com"
+	p.previewDomainMatch()
 	view := p.View(60, 20)
 	if !strings.Contains(view, "Search:") || !strings.Contains(view, "github.com_") {
 		t.Fatalf("search input not rendered: %q", view)
+	}
+}
+
+func TestRulesDomainMatchUpdatesWhileTyping(t *testing.T) {
+	p := rulesPage{
+		rules: []routingRule{
+			{Type: "DOMAIN-KEYWORD", Value: "google", Policy: "Proxy"},
+			{Type: "MATCH", Policy: "Final"},
+		},
+		searching: true,
+	}
+	for _, character := range "google.com" {
+		page, _ := p.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{character}})
+		p = page.(rulesPage)
+	}
+	if p.match == nil || p.match.Type != "DOMAIN-KEYWORD" || p.match.Policy != "Proxy" {
+		t.Fatalf("live domain match = %+v", p.match)
+	}
+	visible := p.visibleRules()
+	if len(visible) != 1 || visible[0].Value != "google" {
+		t.Fatalf("visible rules = %+v", visible)
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	defaultRules "mihomo-tui/internal/rules"
 	"strings"
+	"unicode"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -22,6 +23,7 @@ type rulesPage struct {
 	searching bool
 	filter    string
 	status    string
+	match     *routingRule
 }
 
 func newRulesPage() Page {
@@ -61,9 +63,10 @@ func (p rulesPage) Update(msg tea.Msg) (Page, tea.Cmd) {
 		}
 	case "/":
 		p.searching = true
-		p.status = "Filtering rules"
+		p.status = "Enter a domain to check routing"
 	case "esc":
 		p.filter = ""
+		p.match = nil
 		p.cursor = 0
 		p.offset = 0
 		p.status = "Filter cleared"
@@ -77,20 +80,23 @@ func (p rulesPage) updateSearchKey(key tea.KeyMsg) rulesPage {
 	case tea.KeyEsc:
 		p.searching = false
 		p.filter = ""
+		p.match = nil
 		p.cursor = 0
 		p.offset = 0
 		p.status = "Filter cleared"
 	case tea.KeyEnter:
 		p.searching = false
-		p.status = "Filter applied"
+		p.applyDomainMatch()
 	case tea.KeyBackspace:
 		if len(p.filter) > 0 {
-			p.filter = p.filter[:len(p.filter)-1]
+			p.filter = trimLastRune(p.filter)
+			p.previewDomainMatch()
 			p.cursor = 0
 			p.offset = 0
 		}
 	case tea.KeyRunes:
 		p.filter += key.String()
+		p.previewDomainMatch()
 		p.cursor = 0
 		p.offset = 0
 	}
@@ -143,14 +149,21 @@ func (p rulesPage) View(width, height int) string {
 
 func (p rulesPage) Help() string {
 	if p.searching {
-		return "type filter • enter apply • esc clear"
+		return "type domain • enter check • esc clear"
 	}
-	return "up/down rule • / filter • esc clear"
+	return "up/down rule • / check domain • esc clear"
 }
 
 func (p rulesPage) Message() string {
+	if p.match != nil {
+		rule := p.match.Type
+		if value := displayRuleValue(*p.match); value != "" {
+			rule += " " + value
+		}
+		return fmt.Sprintf("%s → %s → %s", normalizedDomain(p.filter), rule, p.match.Policy)
+	}
 	if p.filter != "" {
-		return fmt.Sprintf("%s: %d matched", p.status, len(p.visibleRules()))
+		return p.status
 	}
 	return p.status
 }
@@ -198,19 +211,101 @@ func padOrTruncate(value string, width int) string {
 }
 
 func (p rulesPage) visibleRules() []routingRule {
-	filter := strings.TrimSpace(strings.ToLower(p.filter))
-	if filter == "" {
+	if p.match != nil {
+		return []routingRule{*p.match}
+	}
+	if strings.TrimSpace(p.filter) == "" {
 		return p.rules
 	}
+	return nil
+}
 
-	filtered := make([]routingRule, 0, len(p.rules))
-	for _, rule := range p.rules {
-		haystack := strings.ToLower(rule.Type + " " + rule.Value + " " + rule.Policy)
-		if strings.Contains(haystack, filter) {
-			filtered = append(filtered, rule)
+func (p *rulesPage) previewDomainMatch() {
+	domain := normalizedDomain(p.filter)
+	if !validDomain(domain) {
+		p.match = nil
+		p.status = "Enter a domain to check routing"
+		return
+	}
+	matched, ok := matchDomainRule(domain, p.rules)
+	if !ok {
+		p.match = nil
+		p.status = "No supported domain rule matched"
+		return
+	}
+	p.match = &matched
+	p.status = "Domain rule preview"
+}
+
+func (p *rulesPage) applyDomainMatch() {
+	domain := normalizedDomain(p.filter)
+	if !validDomain(domain) {
+		p.match = nil
+		p.status = "Enter a valid domain, for example www.example.com"
+		return
+	}
+	matched, ok := matchDomainRule(domain, p.rules)
+	if !ok {
+		p.match = nil
+		p.status = "No supported domain rule matched"
+		return
+	}
+	p.match = &matched
+	p.cursor = 0
+	p.offset = 0
+	p.status = "Domain rule matched"
+}
+
+func matchDomainRule(domain string, rules []routingRule) (routingRule, bool) {
+	domain = normalizedDomain(domain)
+	for _, rule := range rules {
+		value := normalizedDomain(rule.Value)
+		switch strings.ToUpper(rule.Type) {
+		case "DOMAIN":
+			if domain == value {
+				return rule, true
+			}
+		case "DOMAIN-SUFFIX":
+			if domain == value || strings.HasSuffix(domain, "."+value) {
+				return rule, true
+			}
+		case "DOMAIN-KEYWORD":
+			if value != "" && strings.Contains(domain, value) {
+				return rule, true
+			}
+		case "MATCH":
+			return rule, true
 		}
 	}
-	return filtered
+	return routingRule{}, false
+}
+
+func normalizedDomain(value string) string {
+	return strings.TrimSuffix(strings.ToLower(strings.TrimSpace(value)), ".")
+}
+
+func validDomain(domain string) bool {
+	if domain == "" || len(domain) > 253 {
+		return false
+	}
+	for _, label := range strings.Split(domain, ".") {
+		if label == "" || len(label) > 63 || label[0] == '-' || label[len(label)-1] == '-' {
+			return false
+		}
+		for _, character := range label {
+			if !unicode.IsLetter(character) && !unicode.IsDigit(character) && character != '-' {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func displayRuleValue(rule routingRule) string {
+	if rule.Type == "MATCH" || rule.Value == "" || rule.Value == "-" {
+		return ""
+	}
+	return rule.Value
 }
 
 func (p *rulesPage) ensureVisible(height, total int) {
