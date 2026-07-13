@@ -92,16 +92,4 @@ var (
 				Padding(0, 2).
 				Background(lipgloss.Color("238")).
 				Foreground(lipgloss.Color("241"))
-
-	btnStartStyle = lipgloss.NewStyle().
-			Padding(0, 2).
-			Background(lipgloss.Color("120")).
-			Foreground(lipgloss.Color("0")).
-			Bold(true)
-
-	btnStopStyle = lipgloss.NewStyle().
-			Padding(0, 2).
-			Background(lipgloss.Color("196")).
-			Foreground(lipgloss.Color("230")).
-			Bold(true)
 )

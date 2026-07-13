@@ -59,9 +59,8 @@ func TestTabBelongsToActivePageInput(t *testing.T) {
 	}
 }
 
-func (m *recordingManager) Status() core.Status           { return core.StatusRunning }
-func (m *recordingManager) Start(context.Context) error   { return nil }
-func (m *recordingManager) Restart(context.Context) error { return nil }
+func (m *recordingManager) Status() core.Status         { return core.StatusRunning }
+func (m *recordingManager) Start(context.Context) error { return nil }
 func (m *recordingManager) Stop() error {
 	m.stopCalls++
 	return m.stopErr

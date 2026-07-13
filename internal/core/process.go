@@ -169,13 +169,6 @@ func (m *ProcessManager) Stop() error {
 	return nil
 }
 
-func (m *ProcessManager) Restart(ctx context.Context) error {
-	if err := m.Stop(); err != nil {
-		return err
-	}
-	return m.Start(ctx)
-}
-
 func (m *ProcessManager) stopPID(pid int) error {
 	if !m.managedProcessAlive(pid) {
 		return nil

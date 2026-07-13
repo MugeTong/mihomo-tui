@@ -16,6 +16,7 @@ const maxSubscriptionBytes = 8 << 20
 type Fetcher struct {
 	Client       *http.Client
 	AllowPrivate bool
+	ownsClient   bool
 }
 
 func DefaultFetcher() Fetcher {
@@ -33,6 +34,7 @@ func DefaultFetcher() Fetcher {
 			return validateRemoteURL(request.URL, false)
 		},
 	}
+	fetcher.ownsClient = true
 	return fetcher
 }
 
@@ -42,8 +44,14 @@ func (f Fetcher) Import(location string) (ImportResult, error) {
 		return ImportResult{}, fmt.Errorf("subscription URL must be a valid HTTP or HTTPS URL")
 	}
 	client := f.Client
+	closeIdle := false
 	if client == nil {
-		client = DefaultFetcher().Client
+		fallback := DefaultFetcher()
+		client = fallback.Client
+		closeIdle = true
+	}
+	if closeIdle {
+		defer client.CloseIdleConnections()
 	}
 	req, err := http.NewRequest(http.MethodGet, parsed.String(), nil)
 	if err != nil {
@@ -70,6 +78,12 @@ func (f Fetcher) Import(location string) (ImportResult, error) {
 		return ImportResult{}, fmt.Errorf("subscription response exceeds 8 MiB")
 	}
 	return ImportContent(data)
+}
+
+func (f Fetcher) closeIdleConnections() {
+	if f.ownsClient && f.Client != nil {
+		f.Client.CloseIdleConnections()
+	}
 }
 
 func (f Fetcher) safeDialContext(dialer *net.Dialer) func(context.Context, string, string) (net.Conn, error) {

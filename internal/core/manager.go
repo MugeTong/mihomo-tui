@@ -17,5 +17,4 @@ type Manager interface {
 	Status() Status
 	Start(ctx context.Context) error
 	Stop() error
-	Restart(ctx context.Context) error
 }

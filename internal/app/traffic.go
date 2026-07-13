@@ -31,17 +31,19 @@ type trafficPage struct {
 	downloadHistory []int64
 	lastSample      time.Time
 	initialized     bool
+	generation      uint64
 	status          string
 	err             string
 }
 
 type trafficLoadedMsg struct {
-	snapshot mihomo.ConnectionsSnapshot
-	at       time.Time
-	err      error
+	snapshot   mihomo.ConnectionsSnapshot
+	at         time.Time
+	generation uint64
+	err        error
 }
 
-type trafficTickMsg struct{}
+type trafficTickMsg struct{ generation uint64 }
 type trafficEnteredMsg struct{}
 
 func newTrafficPage(client *mihomo.Client, coreManager core.Manager) Page {
@@ -55,13 +57,20 @@ func (p trafficPage) Init() tea.Cmd {
 func (p trafficPage) Update(msg tea.Msg) (Page, tea.Cmd) {
 	switch msg := msg.(type) {
 	case trafficEnteredMsg:
+		p.generation++
 		p.resetSampling()
 		return p, p.load()
 	case trafficTickMsg:
+		if msg.generation != p.generation {
+			return p, nil
+		}
 		return p, p.load()
 	case trafficLoadedMsg:
+		if msg.generation != p.generation {
+			return p, nil
+		}
 		p.applySnapshot(msg)
-		return p, trafficTick()
+		return p, trafficTick(p.generation)
 	}
 	return p, nil
 }
@@ -127,13 +136,13 @@ func (p trafficPage) Message() string {
 }
 
 func (p trafficPage) load() tea.Cmd {
-	client, manager := p.client, p.coreManager
+	client, manager, generation := p.client, p.coreManager, p.generation
 	return func() tea.Msg {
 		if client == nil || manager == nil || manager.Status() != core.StatusRunning {
-			return trafficLoadedMsg{at: time.Now(), err: fmt.Errorf("start Mihomo to view live traffic")}
+			return trafficLoadedMsg{at: time.Now(), generation: generation, err: fmt.Errorf("start Mihomo to view live traffic")}
 		}
 		snapshot, err := client.Connections()
-		return trafficLoadedMsg{snapshot: snapshot, at: time.Now(), err: err}
+		return trafficLoadedMsg{snapshot: snapshot, at: time.Now(), generation: generation, err: err}
 	}
 }
 
@@ -177,8 +186,8 @@ func (p trafficPage) renderActiveConnections(width, limit int) string {
 	return strings.Join(lines, "\n")
 }
 
-func trafficTick() tea.Cmd {
-	return tea.Tick(trafficPollInterval, func(time.Time) tea.Msg { return trafficTickMsg{} })
+func trafficTick(generation uint64) tea.Cmd {
+	return tea.Tick(trafficPollInterval, func(time.Time) tea.Msg { return trafficTickMsg{generation: generation} })
 }
 
 func bytesPerSecond(current, previous int64, elapsed float64) int64 {

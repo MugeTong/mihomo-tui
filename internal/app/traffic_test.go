@@ -79,6 +79,19 @@ func TestTrafficInitResetsSamplingHistory(t *testing.T) {
 	}
 }
 
+func TestTrafficIgnoresMessagesFromPreviousVisit(t *testing.T) {
+	p := trafficPage{generation: 2, uploadSpeed: 123}
+	page, cmd := p.Update(trafficLoadedMsg{
+		generation: 1,
+		snapshot:   mihomo.ConnectionsSnapshot{UploadTotal: 9999},
+		at:         time.Now(),
+	})
+	p = page.(trafficPage)
+	if cmd != nil || p.uploadSpeed != 123 || p.totalUpload != 0 {
+		t.Fatalf("stale traffic message changed page: %+v", p)
+	}
+}
+
 func TestTrafficShowsCompactActiveConnections(t *testing.T) {
 	p := trafficPage{
 		connections: 2,

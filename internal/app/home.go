@@ -19,7 +19,6 @@ type homePage struct {
 	groupCursor int
 	nodeCursor  int
 	nodeOffset  int
-	loading     bool
 	status      string
 	err         string
 	snapshot    bool
@@ -82,7 +81,6 @@ func (p homePage) Update(msg tea.Msg) (Page, tea.Cmd) {
 	case tea.KeyMsg:
 		return p.updateKey(msg)
 	case proxyGroupsLoadedMsg:
-		p.loading = false
 		p.connecting = false
 		if msg.err != nil {
 			p.connected = false
@@ -100,7 +98,6 @@ func (p homePage) Update(msg tea.Msg) (Page, tea.Cmd) {
 		}
 		p.clampCursors()
 	case proxySelectedMsg:
-		p.loading = false
 		if msg.err != nil {
 			p.err = msg.err.Error()
 			return p, nil
@@ -109,7 +106,6 @@ func (p homePage) Update(msg tea.Msg) (Page, tea.Cmd) {
 		p.applySelection(msg.groupName, msg.proxyName)
 		return p, p.loadProxyGroups()
 	case proxyDelayTestedMsg:
-		p.loading = false
 		if msg.err != nil {
 			p.err = msg.err.Error()
 			return p, nil
@@ -117,7 +113,6 @@ func (p homePage) Update(msg tea.Msg) (Page, tea.Cmd) {
 		p.status = fmt.Sprintf("%s delay: %dms", msg.proxyName, msg.delay)
 		p.applyDelay(msg.proxyName, msg.delay)
 	case proxyGroupDelayTestedMsg:
-		p.loading = false
 		if len(msg.errs) > 0 {
 			p.err = firstDelayError(msg.errs).Error()
 			p.status = "Group delay partially failed"
@@ -127,7 +122,6 @@ func (p homePage) Update(msg tea.Msg) (Page, tea.Cmd) {
 		}
 		p.applyDelays(msg.delays)
 	case configReloadedMsg:
-		p.loading = false
 		if msg.err != nil {
 			p.err = msg.err.Error()
 			return p, nil
@@ -135,7 +129,6 @@ func (p homePage) Update(msg tea.Msg) (Page, tea.Cmd) {
 		p.status = "Config reloaded"
 		return p, p.loadProxyGroups()
 	case coreStartedMsg:
-		p.loading = false
 		if msg.err != nil {
 			p.connecting = false
 			p.err = msg.err.Error()
@@ -147,7 +140,6 @@ func (p homePage) Update(msg tea.Msg) (Page, tea.Cmd) {
 		p.connecting = true
 		return p, p.loadProxyGroups()
 	case coreStoppedMsg:
-		p.loading = false
 		p.connecting = false
 		if msg.err != nil {
 			p.err = msg.err.Error()
@@ -189,27 +181,27 @@ func (p homePage) updateKey(key tea.KeyMsg) (Page, tea.Cmd) {
 			p.err = "Start Mihomo core before selecting a proxy"
 			return p, nil
 		}
-		return p.startLoading("Selecting proxy"), p.selectCurrentProxy()
+		return p.startAction("Selecting proxy"), p.selectCurrentProxy()
 	case " ":
 		return p.toggleCore()
 	case "x":
-		return p.startLoading("Stopping core"), p.stopCore()
+		return p.startAction("Stopping core"), p.stopCore()
 	case "r":
-		return p.startLoading("Refreshing"), p.loadProxyGroups()
+		return p.startAction("Refreshing"), p.loadProxyGroups()
 	case "R":
-		return p.startLoading("Reloading config"), p.reloadConfig()
+		return p.startAction("Reloading config"), p.reloadConfig()
 	case "d":
 		if p.snapshot {
 			p.err = "Start Mihomo core before testing delay"
 			return p, nil
 		}
-		return p.startLoading("Testing delay"), p.testCurrentProxyDelay()
+		return p.startAction("Testing delay"), p.testCurrentProxyDelay()
 	case "D":
 		if p.snapshot {
 			p.err = "Start Mihomo core before testing delay"
 			return p, nil
 		}
-		return p.startLoading("Testing group delay"), p.testCurrentGroupDelay()
+		return p.startAction("Testing group delay"), p.testCurrentGroupDelay()
 	}
 
 	return p, nil
@@ -275,8 +267,7 @@ func (p *homePage) ensureNodeVisible(height int) {
 	p.nodeOffset = nodeWindow(bodyHeight, len(nodes), p.nodeCursor, p.nodeOffset).start
 }
 
-func (p homePage) startLoading(status string) homePage {
-	p.loading = true
+func (p homePage) startAction(status string) homePage {
 	p.status = status
 	p.err = ""
 	return p
@@ -354,9 +345,9 @@ func visibleHomeGroups(groups []mihomo.ProxyGroup) []mihomo.ProxyGroup {
 
 func (p homePage) toggleCore() (Page, tea.Cmd) {
 	if p.coreStatus() == core.StatusRunning {
-		return p.startLoading("Stopping core"), p.stopCore()
+		return p.startAction("Stopping core"), p.stopCore()
 	}
-	return p.startLoading("Starting core"), p.startCore()
+	return p.startAction("Starting core"), p.startCore()
 }
 
 func firstDelayError(errs map[string]error) error {

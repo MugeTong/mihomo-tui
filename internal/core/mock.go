@@ -49,10 +49,3 @@ func (m *MockManager) Stop() error {
 	m.status = StatusStopped
 	return nil
 }
-
-func (m *MockManager) Restart(ctx context.Context) error {
-	if err := m.Stop(); err != nil {
-		return err
-	}
-	return m.Start(ctx)
-}

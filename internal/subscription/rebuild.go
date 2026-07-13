@@ -11,6 +11,7 @@ type RebuildReport struct {
 
 // Rebuild derives a fresh node pool from every persisted source.
 func Rebuild(sources []Source, fetcher Fetcher) ([]Node, RebuildReport, error) {
+	defer fetcher.closeIdleConnections()
 	nodes := []Node{}
 	report := RebuildReport{}
 	for index, source := range sources {
