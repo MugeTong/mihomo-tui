@@ -21,6 +21,7 @@ Download the installer for your platform from the
 wget https://github.com/MugeTong/mihomo-tui/releases/latest/download/mihomo-tui-linux-amd64-installer
 chmod +x mihomo-tui-linux-amd64-installer
 ./mihomo-tui-linux-amd64-installer
+rm mihomo-tui-linux-amd64-installer
 ```
 
 For Linux arm64 or macOS arm64, replace the asset name with
