@@ -77,7 +77,7 @@ func TestHomeLoadsNodesAndPoliciesFromConfigSnapshot(t *testing.T) {
 	if _, err := runtimeconfig.Write(cfg.ConfigPath, data); err != nil {
 		t.Fatal(err)
 	}
-	p := newHomePage(nil, core.NewMockManager(core.StatusStopped), cfg).(homePage)
+	p := newHomePage(nil, &recordingManager{status: core.StatusStopped}, cfg).(homePage)
 	page, _ := p.Update(p.Init()())
 	p = page.(homePage)
 	if !p.snapshot || len(p.groups) != 1 || p.groups[0].Name != "Proxy" || len(p.groups[0].Proxies) != 1 {
@@ -98,7 +98,7 @@ func TestHomeLoadsNodesAndPoliciesFromConfigSnapshot(t *testing.T) {
 
 func TestHomeShowsErrorWhenRunningCoreHasNoController(t *testing.T) {
 	p := homePage{
-		coreManager: core.NewMockManager(core.StatusRunning),
+		coreManager: &recordingManager{status: core.StatusRunning},
 		groups:      []mihomo.ProxyGroup{{Name: "Proxy"}},
 		snapshot:    true,
 	}

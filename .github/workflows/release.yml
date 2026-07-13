@@ -1,0 +1,31 @@
+name: Build and Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build release installers
+        run: make build
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: releases/*-installer
+          fail_on_unmatched_files: true

@@ -16,6 +16,7 @@ import (
 type recordingManager struct {
 	stopCalls int
 	stopErr   error
+	status    core.Status
 }
 
 func TestRulesPageDoesNotOverflowRootFrame(t *testing.T) {
@@ -59,7 +60,12 @@ func TestTabBelongsToActivePageInput(t *testing.T) {
 	}
 }
 
-func (m *recordingManager) Status() core.Status         { return core.StatusRunning }
+func (m *recordingManager) Status() core.Status {
+	if m.status == "" {
+		return core.StatusRunning
+	}
+	return m.status
+}
 func (m *recordingManager) Start(context.Context) error { return nil }
 func (m *recordingManager) Stop() error {
 	m.stopCalls++

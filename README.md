@@ -1,11 +1,42 @@
 # Mihomo TUI
 
-A keyboard-first terminal UI for managing mihomo proxy nodes on Ubuntu.
+[![Go](https://img.shields.io/github/go-mod/go-version/MugeTong/mihomo-tui)](https://go.dev/)
+[![License](https://img.shields.io/github/license/MugeTong/mihomo-tui)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/MugeTong/mihomo-tui?color=green)](https://github.com/MugeTong/mihomo-tui/releases)
+![Downloads](https://img.shields.io/github/downloads/MugeTong/mihomo-tui/total)
 
-The core scope is proxy-only: HTTP, SOCKS, and mixed proxy modes. It does not
-manage TUN mode, VPN routes, or desktop proxy settings. The installer adds a
-small Bash/Zsh integration so `mhmt on/off` can update the current shell's proxy
-environment variables.
+A keyboard-first Mihomo manager for the terminal, with Linux amd64 as its
+primary supported platform.
+
+Manage subscriptions, nodes, proxy groups, rules, and the Mihomo core without a
+Web UI. The project supports HTTP, SOCKS, and mixed proxies only.
+
+## Quick Start
+
+Download the installer for your platform from the
+[latest release](https://github.com/MugeTong/mihomo-tui/releases/latest):
+
+```bash
+# Linux amd64
+curl -LO https://github.com/MugeTong/mihomo-tui/releases/latest/download/mihomo-tui-linux-amd64-installer
+chmod +x mihomo-tui-linux-amd64-installer
+./mihomo-tui-linux-amd64-installer
+```
+
+For Linux arm64 or macOS arm64, replace the asset name with
+`mihomo-tui-linux-arm64-installer` or
+`mihomo-tui-darwin-arm64-installer`.
+
+The installer does not require root. Open a new terminal after installation,
+then launch the TUI:
+
+```bash
+mhmt
+```
+
+Press `a` on the Sources page to import a subscription URL or node URI. Return
+to Home and press `space` to start Mihomo. Use the arrow keys to choose a node
+and `enter` to select it.
 
 ## Commands
 
@@ -15,21 +46,24 @@ mhmt start    Start the managed Mihomo core
 mhmt stop     Stop the managed Mihomo core
 mhmt on       Enable proxy variables in the current shell
 mhmt off      Disable proxy variables in the current shell
+mhmt version  Show the installed version
 ```
 
 The commands are intentionally independent: `on` does not start Mihomo, and
-`off` does not stop it. The installer creates
-`~/.local/share/mihomo-tui/env` and adds this idempotent line to an existing
-`~/.bashrc` or `~/.zshrc`:
+`off` does not stop it. Both commands update proxy variables in the current
+shell through the integration configured by the installer.
 
-```bash
-. "$HOME/.local/share/mihomo-tui/env"
+## Installed Files
+
+```text
+~/.config/mihomo-tui/       Settings, subscription state, and generated config
+~/.local/share/mihomo-tui/  Mihomo core, GeoIP, shell integration, and licenses
+~/.local/state/mihomo-tui/  PID and log files
+~/.local/bin/mhmt            Command-line program
 ```
 
-Open a new shell session or source its rc file once after installation. Existing
-shells cannot be modified by a child process, so the installed `mhmt()` shell
-function evaluates only the `on/off` output and forwards every other command to
-the real binary.
+Existing settings and subscription state are preserved when the installer is
+run again.
 
 ## Development
 
@@ -55,18 +89,6 @@ the config, subscription, and runtime-config packages. The installer command
 only supplies its embedded platform payload. This keeps future packaging or
 uninstall commands from duplicating path and configuration logic.
 
-### Local layout
-
-`internal/local.ResolveLayout` is the single source of truth for installed
-paths:
-
-```text
-~/.config/mihomo-tui/       config.json, state.json, config.yaml
-~/.local/share/mihomo-tui/  core, GeoIP, shell integration, licenses
-~/.local/state/mihomo-tui/  PID and log files
-~/.local/bin/               mhmt
-```
-
 Run the local TUI against the last generated config snapshot:
 
 ```bash
@@ -91,12 +113,6 @@ releases/mihomo-tui-linux-amd64-installer
 releases/mihomo-tui-linux-arm64-installer
 releases/mihomo-tui-darwin-arm64-installer
 ```
-
-The installer uses a fixed per-user layout: `mhmt` in `~/.local/bin`, the
-versioned Mihomo core and offline GeoIP data under
-`~/.local/share/mihomo-tui`, initial settings under
-`~/.config/mihomo-tui`, and process PID and log files under
-`~/.local/state/mihomo-tui`. Existing settings are not overwritten.
 
 Run tests:
 
