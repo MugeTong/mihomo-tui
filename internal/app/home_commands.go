@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	proxyGroupsReadyAttempts = 20
+	proxyGroupsReadyAttempts = 50
 	proxyGroupsReadyDelay    = 100 * time.Millisecond
 )
 

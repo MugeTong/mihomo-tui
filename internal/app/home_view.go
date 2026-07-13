@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"mihomo-tui/internal/core"
+
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -26,18 +28,29 @@ func (p homePage) Help() string {
 func (p homePage) renderStatusSection() string {
 	title := titleStyle.Render("Status")
 
-	status := offStyle.Render("Disconnected")
-	if p.snapshot && len(p.groups) > 0 {
-		status = valueStyle.Render("Config Ready")
-	} else if p.err == "" && len(p.groups) > 0 {
-		status = onStyle.Render("Connected")
+	connection := offStyle.Render("Disconnected")
+	if p.connected {
+		connection = onStyle.Render("Connected")
+	} else if p.snapshot && len(p.groups) > 0 {
+		connection = warningStyle.Render("Offline Snapshot")
 	}
 
-	body := labelStyle.Render("  State:     ") + status + "\n" +
-		labelStyle.Render("  Core:      ") + valueStyle.Render(string(p.coreStatus())) + "\n" +
-		labelStyle.Render("  Mode:      ") + valueStyle.Render(p.proxyMode)
+	body := labelStyle.Render("  Controller: ") + connection + "\n" +
+		labelStyle.Render("  Core:       ") + renderCoreStatus(p.coreStatus()) + "\n" +
+		labelStyle.Render("  Mode:       ") + valueStyle.Render(p.proxyMode)
 
 	return title + "\n\n" + body
+}
+
+func renderCoreStatus(status core.Status) string {
+	switch status {
+	case core.StatusRunning:
+		return onStyle.Render(string(status))
+	case core.StatusStarting, core.StatusStopping:
+		return warningStyle.Render(string(status))
+	default:
+		return offStyle.Render(string(status))
+	}
 }
 
 func (p homePage) renderGroupsSection(_ int) string {

@@ -23,6 +23,7 @@ type homePage struct {
 	status      string
 	err         string
 	snapshot    bool
+	connected   bool
 }
 
 type proxyGroupsLoadedMsg struct {
@@ -80,6 +81,7 @@ func (p homePage) Update(msg tea.Msg) (Page, tea.Cmd) {
 	case proxyGroupsLoadedMsg:
 		p.loading = false
 		if msg.err != nil {
+			p.connected = false
 			p.err = msg.err.Error()
 			p.status = "Controller unavailable"
 			return p, nil
@@ -88,6 +90,7 @@ func (p homePage) Update(msg tea.Msg) (Page, tea.Cmd) {
 		p.status = "Controller connected"
 		p.groups = visibleHomeGroups(msg.groups)
 		p.snapshot = msg.snapshot
+		p.connected = !msg.snapshot
 		if msg.snapshot {
 			p.status = "Loaded generated config snapshot"
 		}
