@@ -11,6 +11,10 @@ primary supported platform.
 Manage subscriptions, nodes, proxy groups, rules, and the Mihomo core without a
 Web UI. The project supports HTTP, SOCKS, and mixed proxies only.
 
+<p align="center">
+  <img src="assets/traffic.png" alt="Mihomo TUI traffic view" width="70%">
+</p>
+
 ## Quick Start
 
 Download the installer for your platform from the
