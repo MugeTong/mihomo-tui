@@ -2,7 +2,7 @@ VERSION ?= dev
 MIHOMO_VERSION := 1.19.28
 BUILD_DIR := releases/build
 RELEASE_DIR := releases
-CLIENT_SRC := ./cmd
+CLIENT_SRC := ./cmd/mhmt
 INSTALLER_SRC := ./cmd/installer/main.go
 GO ?= go
 CURL ?= curl
@@ -12,8 +12,8 @@ GEOIP_ASSET ?=
 PLATFORMS := linux/amd64 linux/arm64 darwin/arm64
 LDFLAGS := -s -w -X main.version=$(VERSION)
 MIHOMO_BASE_URL := https://github.com/MetaCubeX/mihomo/releases/download/v$(MIHOMO_VERSION)
-GEOIP_ASSET_URL := https://api.github.com/repos/MetaCubeX/meta-rules-dat/releases/assets/473004503
-GEOIP_SHA256 := bf2357a1ae88c8bb3251ccb454575b37a73b77db901de7374db379d14dbcaa91
+GEOIP_ASSET_URL := https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.metadb
+GEOIP_CHECKSUM_URL := $(GEOIP_ASSET_URL).sha256sum
 
 .PHONY: build run test
 
@@ -27,12 +27,13 @@ build:
 	@if [ -n "$(GEOIP_ASSET)" ] && [ -f "$(GEOIP_ASSET)" ]; then \
 		cp "$(GEOIP_ASSET)" $(BUILD_DIR)/geoip.metadb; \
 	else \
-		$(CURL) --fail --location --silent --show-error \
-			-H "Accept: application/octet-stream" $(GEOIP_ASSET_URL) \
-			-o $(BUILD_DIR)/geoip.metadb; \
+		$(CURL) --fail --location --silent --show-error $(GEOIP_ASSET_URL) -o $(BUILD_DIR)/geoip.metadb; \
 	fi
-	@actual=$$(shasum -a 256 $(BUILD_DIR)/geoip.metadb | awk '{print $$1}'); \
-		if [ "$$actual" != "$(GEOIP_SHA256)" ]; then echo "Checksum mismatch for geoip.metadb" >&2; exit 1; fi
+	@$(CURL) --fail --location --silent --show-error $(GEOIP_CHECKSUM_URL) -o $(BUILD_DIR)/geoip.metadb.sha256sum
+	@expected=$$(awk '{print $$1}' $(BUILD_DIR)/geoip.metadb.sha256sum); \
+		actual=$$(shasum -a 256 $(BUILD_DIR)/geoip.metadb | awk '{print $$1}'); \
+		if [ "$$actual" != "$$expected" ]; then echo "Checksum mismatch for geoip.metadb" >&2; exit 1; fi; \
+		echo $$actual > $(BUILD_DIR)/geoip.metadb.sha256
 	@for platform in $(PLATFORMS); do \
 		os=$${platform%/*}; \
 		arch=$${platform#*/}; \
@@ -63,7 +64,7 @@ build:
 		echo "https://github.com/MetaCubeX/mihomo/tree/v$(MIHOMO_VERSION)" >> $$stage/payload/MIHOMO_SOURCE.txt; \
 		echo "MetaCubeX meta-rules-dat geoip.metadb corresponding source:" > $$stage/payload/META_RULES_SOURCE.txt; \
 		echo "https://github.com/MetaCubeX/meta-rules-dat" >> $$stage/payload/META_RULES_SOURCE.txt; \
-		echo "GitHub asset 473004503, SHA-256 $(GEOIP_SHA256)" >> $$stage/payload/META_RULES_SOURCE.txt; \
+		echo "Official rolling release, SHA-256 $$(cat $(BUILD_DIR)/geoip.metadb.sha256)" >> $$stage/payload/META_RULES_SOURCE.txt; \
 		cp $(INSTALLER_SRC) $$stage/main.go; \
 		CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch $(GO) build \
 			-ldflags "$(LDFLAGS) -X main.coreVersion=$(MIHOMO_VERSION)" \

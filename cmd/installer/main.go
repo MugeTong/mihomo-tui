@@ -29,6 +29,21 @@ var (
 	coreVersion = "dev"
 )
 
+const shellEnvironment = `# Managed by Mihomo TUI. Source this file from Bash.
+mhmt() {
+    case "${1-}" in
+        on|off)
+            local mhmt_shell_output
+            mhmt_shell_output="$(command "$HOME/.local/bin/mhmt" "$1")" || return
+            eval "$mhmt_shell_output"
+            ;;
+        *)
+            command "$HOME/.local/bin/mhmt" "$@"
+            ;;
+    esac
+}
+`
+
 func main() {
 	if err := install(); err != nil {
 		fmt.Fprintf(os.Stderr, "Installation failed: %v\n", err)
@@ -93,12 +108,52 @@ func install() error {
 	if err := writeInitialRuntimeConfig(filepath.Join(configDir, "config.yaml")); err != nil {
 		return err
 	}
+	envPath := filepath.Join(appDataDir, "env")
+	if err := atomicWrite(envPath, 0o644, func(writer io.Writer) error {
+		_, err := io.WriteString(writer, shellEnvironment)
+		return err
+	}); err != nil {
+		return err
+	}
+	sourceLine := `. "$HOME/.local/share/mihomo-tui/env"`
+	if dataHome != filepath.Join(home, ".local", "share") {
+		sourceLine = `. "` + envPath + `"`
+	}
+	if err := ensureShellSource(filepath.Join(home, ".bashrc"), sourceLine); err != nil {
+		return err
+	}
 
 	fmt.Printf("Mihomo TUI %s installed successfully.\n", version)
 	fmt.Printf("  TUI:    %s\n", filepath.Join(binDir, "mhmt"))
 	fmt.Printf("  Mihomo: %s\n", corePath)
+	fmt.Printf("  Shell:  %s\n", envPath)
 	if !pathContains(binDir) {
 		fmt.Printf("  Note: add %s to PATH.\n", binDir)
+	}
+	return nil
+}
+
+func ensureShellSource(path, sourceLine string) error {
+	data, err := os.ReadFile(path)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("read Bash configuration: %w", err)
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.TrimSpace(line) == sourceLine {
+			return nil
+		}
+	}
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	if err != nil {
+		return fmt.Errorf("open Bash configuration: %w", err)
+	}
+	defer file.Close()
+	prefix := ""
+	if len(data) > 0 && data[len(data)-1] != '\n' {
+		prefix = "\n"
+	}
+	if _, err := fmt.Fprintf(file, "%s\n# Mihomo TUI shell integration\n%s\n", prefix, sourceLine); err != nil {
+		return fmt.Errorf("update Bash configuration: %w", err)
 	}
 	return nil
 }

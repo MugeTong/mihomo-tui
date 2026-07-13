@@ -1,13 +1,11 @@
 package app
 
 import (
-	"path/filepath"
 	"strings"
 
 	"mihomo-tui/internal/config"
 	"mihomo-tui/internal/core"
 	"mihomo-tui/internal/mihomo"
-	"mihomo-tui/internal/xdg"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -196,23 +194,10 @@ func StartTUI() error {
 		return err
 	}
 
-	settingsPath, err := config.Path()
+	coreManager, err := core.NewConfiguredManager(cfg)
 	if err != nil {
 		return err
 	}
-	appDir := filepath.Dir(settingsPath)
-	dataDir, err := xdg.AppDataDir("mihomo-tui")
-	if err != nil {
-		return err
-	}
-	coreManager := core.NewProcessManager(core.ProcessOptions{
-		BinaryPath:        cfg.BinaryPath,
-		ConfigPath:        cfg.ConfigPath,
-		DataDir:           filepath.Join(dataDir, "mihomo"),
-		PIDPath:           filepath.Join(appDir, "mihomo.pid"),
-		LogPath:           filepath.Join(appDir, "mihomo.log"),
-		ControllerAddress: config.ControllerAddress,
-	})
 	p := tea.NewProgram(newModel(client, coreManager, cfg), tea.WithAltScreen())
 	_, err = p.Run()
 	return err

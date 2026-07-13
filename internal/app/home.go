@@ -1,23 +1,13 @@
 package app
 
 import (
-	"context"
 	"fmt"
-	"strings"
-	"time"
 
 	"mihomo-tui/internal/config"
 	"mihomo-tui/internal/core"
 	"mihomo-tui/internal/mihomo"
-	"mihomo-tui/internal/runtimeconfig"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-)
-
-const (
-	proxyGroupsReadyAttempts = 20
-	proxyGroupsReadyDelay    = 100 * time.Millisecond
 )
 
 type homePage struct {
@@ -215,195 +205,6 @@ func (p homePage) updateKey(key tea.KeyMsg) (Page, tea.Cmd) {
 	return p, nil
 }
 
-func (p homePage) View(width, height int) string {
-	contentWidth := max(width-4, 10)
-
-	statusSection := p.renderStatusSection()
-	groupSection := p.renderGroupsSection(contentWidth)
-	nodesHeight := p.nodesViewportHeight(height)
-	p.ensureNodeVisible(nodesHeight)
-	nodesSection := p.renderNodesSection(contentWidth, nodesHeight)
-
-	return statusSection + "\n\n" + groupSection + "\n\n" + nodesSection
-}
-
-func (p homePage) Help() string {
-	return "left/right group • up/down node • enter select • space core"
-}
-
-func (p homePage) renderStatusSection() string {
-	title := titleStyle.Render("Status")
-
-	status := offStyle.Render("Disconnected")
-	if p.snapshot && len(p.groups) > 0 {
-		status = valueStyle.Render("Config Ready")
-	} else if p.err == "" && len(p.groups) > 0 {
-		status = onStyle.Render("Connected")
-	}
-
-	body := labelStyle.Render("  State:     ") + status + "\n" +
-		labelStyle.Render("  Core:      ") + valueStyle.Render(string(p.coreStatus())) + "\n" +
-		labelStyle.Render("  Mode:      ") + valueStyle.Render(p.proxyMode)
-
-	return title + "\n\n" + body
-}
-
-func (p homePage) renderGroupsSection(width int) string {
-	title := titleStyle.Render("Proxy Groups")
-	if len(p.groups) == 0 {
-		return title + "\n\n" + labelStyle.Render("  No proxy groups loaded")
-	}
-
-	groupLabels := make([]string, 0, len(p.groups))
-	for i, group := range p.groups {
-		text := group.Name
-		if group.Now != "" {
-			text += ":" + group.Now
-		}
-		if i == p.groupCursor {
-			groupLabels = append(groupLabels, tabActiveStyle.Render(text))
-		} else {
-			groupLabels = append(groupLabels, tabStyle.Render(text))
-		}
-	}
-
-	line := strings.Join(groupLabels, tabSepStyle.Render(" "))
-	return title + "\n\n" + line
-}
-
-func (p homePage) renderNodesSection(width, height int) string {
-	title := titleStyle.Render("Nodes")
-	buttons := btnDisabledStyle.Render("Delay")
-	gap := max(width-lipgloss.Width(title)-lipgloss.Width(buttons), 1)
-	titleLine := title + strings.Repeat(" ", gap) + buttons
-
-	var nodeList string
-	nodes := p.visibleNodes()
-	current := p.currentGroup()
-	if len(nodes) == 0 {
-		nodeList = labelStyle.Render("  No nodes loaded")
-	} else {
-		bodyHeight := max(height-2, 1)
-		windowInfo := nodeWindow(bodyHeight, len(nodes), p.nodeCursor, p.nodeOffset)
-		p.nodeOffset = windowInfo.start
-		window := nodes[windowInfo.start:windowInfo.end]
-		var lines []string
-		for i, n := range window {
-			absoluteIndex := windowInfo.start + i
-			nodeMarker := "  "
-			nameStyle := nodeInactiveStyle
-			if absoluteIndex == p.nodeCursor {
-				nodeMarker = "> "
-			}
-			if n.Name == current.Now {
-				nameStyle = nodeActiveStyle
-			}
-
-			prefix := labelStyle.Render(fmt.Sprintf("  %s%d. ", nodeMarker, absoluteIndex+1))
-			name := nameStyle.Render(n.Name)
-			typ := labelStyle.Render(fmt.Sprintf(" [%s]", n.Type))
-			delay := renderDelay(n.Delay)
-
-			lines = append(lines, prefix+name+typ+"  "+delay)
-		}
-		if windowInfo.hasAbove {
-			lines = append([]string{labelStyle.Render("  ...")}, lines...)
-		}
-		if windowInfo.hasBelow {
-			lines = append(lines, labelStyle.Render("  ..."))
-		}
-		lines = append(lines, labelStyle.Render(fmt.Sprintf("  %d/%d", p.nodeCursor+1, len(nodes))))
-		nodeList = strings.Join(lines, "\n")
-	}
-
-	return titleLine + "\n\n" + nodeList
-}
-
-func (p homePage) loadProxyGroups() tea.Cmd {
-	return func() tea.Msg {
-		if p.coreStatus() != core.StatusRunning {
-			groups, err := runtimeconfig.LoadProxyGroups(p.cfg.ConfigPath)
-			return proxyGroupsLoadedMsg{groups: groups, snapshot: err == nil, err: err}
-		}
-		groups, err := p.loadReadyProxyGroups()
-		return proxyGroupsLoadedMsg{groups: groups, err: err}
-	}
-}
-
-func (p homePage) loadReadyProxyGroups() ([]mihomo.ProxyGroup, error) {
-	if p.client == nil {
-		return nil, fmt.Errorf("mihomo controller unavailable")
-	}
-	var lastErr error
-	for attempt := 0; attempt < proxyGroupsReadyAttempts; attempt++ {
-		groups, err := p.client.ProxyGroups()
-		if err == nil && len(visibleHomeGroups(groups)) > 0 {
-			return groups, nil
-		}
-		if err != nil {
-			lastErr = err
-		} else {
-			lastErr = fmt.Errorf("proxy groups are not ready")
-		}
-		if attempt+1 < proxyGroupsReadyAttempts {
-			time.Sleep(proxyGroupsReadyDelay)
-		}
-	}
-	return nil, lastErr
-}
-
-func (p homePage) selectCurrentProxy() tea.Cmd {
-	group := p.currentGroup()
-	proxy := p.currentProxy()
-	return func() tea.Msg {
-		if group.Name == "" || proxy.Name == "" {
-			return proxySelectedMsg{err: fmt.Errorf("no proxy selected")}
-		}
-		return proxySelectedMsg{groupName: group.Name, proxyName: proxy.Name, err: p.client.SelectProxy(group.Name, proxy.Name)}
-	}
-}
-
-func (p homePage) testCurrentProxyDelay() tea.Cmd {
-	proxy := p.currentProxy()
-	return func() tea.Msg {
-		if proxy.Name == "" {
-			return proxyDelayTestedMsg{err: fmt.Errorf("no proxy selected")}
-		}
-		delay, err := p.client.TestProxyDelay(proxy.Name, 5*time.Second)
-		return proxyDelayTestedMsg{proxyName: proxy.Name, delay: delay, err: err}
-	}
-}
-
-func (p homePage) testCurrentGroupDelay() tea.Cmd {
-	nodes := append([]mihomo.Proxy(nil), p.visibleNodes()...)
-	return func() tea.Msg {
-		if len(nodes) == 0 {
-			return proxyGroupDelayTestedMsg{errs: map[string]error{"group": fmt.Errorf("no nodes selected")}}
-		}
-
-		delays := make(map[string]int, len(nodes))
-		errs := make(map[string]error)
-		for _, node := range nodes {
-			delay, err := p.client.TestProxyDelay(node.Name, 5*time.Second)
-			if err != nil {
-				errs[node.Name] = err
-				continue
-			}
-			delays[node.Name] = delay
-		}
-		return proxyGroupDelayTestedMsg{delays: delays, errs: errs}
-	}
-}
-
-func (p homePage) reloadConfig() tea.Cmd {
-	return func() tea.Msg {
-		if p.coreStatus() != core.StatusRunning {
-			return configReloadedMsg{err: fmt.Errorf("core is %s", p.coreStatus())}
-		}
-		return configReloadedMsg{err: p.client.ReloadConfig("", false)}
-	}
-}
-
 func (p homePage) currentGroup() mihomo.ProxyGroup {
 	if len(p.groups) == 0 || p.groupCursor < 0 || p.groupCursor >= len(p.groups) {
 		return mihomo.ProxyGroup{}
@@ -462,13 +263,6 @@ func (p *homePage) ensureNodeVisible(height int) {
 
 	bodyHeight := max(height-1, 1)
 	p.nodeOffset = nodeWindow(bodyHeight, len(nodes), p.nodeCursor, p.nodeOffset).start
-}
-
-func (p homePage) nodesViewportHeight(contentHeight int) int {
-	// Status is five lines, groups are three, and the two section gaps each
-	// contribute one blank line.
-	const rowsBeforeNodes = 5 + 3 + 2
-	return max(contentHeight-rowsBeforeNodes, 1)
 }
 
 func (p homePage) startLoading(status string) homePage {
@@ -555,42 +349,9 @@ func (p homePage) toggleCore() (Page, tea.Cmd) {
 	return p.startLoading("Starting core"), p.startCore()
 }
 
-func (p homePage) startCore() tea.Cmd {
-	return func() tea.Msg {
-		if p.coreManager == nil {
-			return coreStartedMsg{err: fmt.Errorf("core manager unavailable")}
-		}
-		return coreStartedMsg{err: p.coreManager.Start(context.Background())}
-	}
-}
-
-func (p homePage) stopCore() tea.Cmd {
-	return func() tea.Msg {
-		if p.coreManager == nil {
-			return coreStoppedMsg{err: fmt.Errorf("core manager unavailable")}
-		}
-		return coreStoppedMsg{err: p.coreManager.Stop()}
-	}
-}
-
 func firstDelayError(errs map[string]error) error {
 	for name, err := range errs {
 		return fmt.Errorf("%s: %w", name, err)
 	}
 	return fmt.Errorf("delay test failed")
-}
-
-func renderDelay(ms int) string {
-	if ms < 0 {
-		return nodeDelayNone.Render("--")
-	}
-	text := fmt.Sprintf("%dms", ms)
-	switch {
-	case ms < 200:
-		return nodeDelayGood.Render(text)
-	case ms < 500:
-		return nodeDelayMed.Render(text)
-	default:
-		return nodeDelayBad.Render(text)
-	}
 }

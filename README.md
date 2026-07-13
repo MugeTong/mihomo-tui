@@ -2,7 +2,33 @@
 
 A keyboard-first terminal UI for managing mihomo proxy nodes on Ubuntu.
 
-The core scope is proxy-only: HTTP, SOCKS, and mixed proxy modes. It does not manage TUN mode, VPN routes, or system proxy settings.
+The core scope is proxy-only: HTTP, SOCKS, and mixed proxy modes. It does not
+manage TUN mode, VPN routes, or desktop proxy settings. The installer adds a
+small Bash integration so `mhmt on/off` can update the current shell's proxy
+environment variables.
+
+## Commands
+
+```text
+mhmt          Open the TUI
+mhmt start    Start the managed Mihomo core
+mhmt stop     Stop the managed Mihomo core
+mhmt on       Enable proxy variables in the current Bash
+mhmt off      Disable proxy variables in the current Bash
+```
+
+The commands are intentionally independent: `on` does not start Mihomo, and
+`off` does not stop it. The installer creates
+`~/.local/share/mihomo-tui/env` and adds this idempotent line to `~/.bashrc`:
+
+```bash
+. "$HOME/.local/share/mihomo-tui/env"
+```
+
+Open a new Bash session or run `. ~/.bashrc` once after installation. Existing
+shells cannot be modified by a child process, so the installed `mhmt()` shell
+function evaluates only the `on/off` output and forwards every other command to
+the real binary.
 
 ## Development
 
