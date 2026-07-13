@@ -67,13 +67,89 @@ func parseShareLink(value string) (Node, error) {
 	case "trojan":
 		return parseUserLink(parsed, ProtocolTrojan, "password")
 	case "vless":
-		return parseUserLink(parsed, ProtocolVLESS, "uuid")
+		return parseVLESSLink(parsed)
 	case "anytls":
 		return parseUserLink(parsed, ProtocolAnyTLS, "password")
 	case "hysteria2", "hy2":
 		return parseUserLink(parsed, ProtocolHysteria2, "password")
 	default:
 		return Node{}, fmt.Errorf("unsupported share link scheme %q", parsed.Scheme)
+	}
+}
+
+func parseVLESSLink(parsed *url.URL) (Node, error) {
+	if parsed.User != nil {
+		credential := parsed.User.Username()
+		if credential == "" {
+			return Node{}, fmt.Errorf("share link credential is required")
+		}
+		server, port, err := shareEndpoint(parsed)
+		if err != nil {
+			return Node{}, err
+		}
+		options := map[string]any{"uuid": credential}
+		copyQueryOptions(options, parsed.Query())
+		normalizeShadowrocketVLESSOptions(options)
+		return normalizedShareNode(parsed, ProtocolVLESS, server, port, options)
+	}
+	encoded := strings.TrimPrefix(parsed.Host+parsed.Path, "//")
+	decoded, ok := decodeBase64(encoded)
+	if !ok {
+		return Node{}, fmt.Errorf("invalid encoded VLESS share link")
+	}
+	decoded = strings.TrimPrefix(decoded, ":")
+	at := strings.LastIndex(decoded, "@")
+	if at < 1 {
+		return Node{}, fmt.Errorf("invalid encoded VLESS share link")
+	}
+	credential := strings.TrimSpace(decoded[:at])
+	if credential == "" {
+		return Node{}, fmt.Errorf("share link credential is required")
+	}
+	server, port, err := splitHostPort(decoded[at+1:])
+	if err != nil {
+		return Node{}, err
+	}
+	options := map[string]any{"uuid": credential}
+	copyQueryOptions(options, parsed.Query())
+	normalizeShadowrocketVLESSOptions(options)
+	return normalizedShareNode(parsed, ProtocolVLESS, server, port, options)
+}
+
+func normalizeShadowrocketVLESSOptions(options map[string]any) {
+	moveStringOption(options, "peer", "sni")
+	moveStringOption(options, "fingerprint", "fp")
+	if textOption(options, "pbk") != "" {
+		options["security"] = "reality"
+	} else if optionEnabled(options, "tls") {
+		options["security"] = "tls"
+	}
+	if textOption(options, "xtls") == "2" {
+		options["flow"] = "xtls-rprx-vision"
+	}
+	delete(options, "remarks")
+	delete(options, "tls")
+	delete(options, "xtls")
+}
+
+func moveStringOption(options map[string]any, from, to string) {
+	if value := textOption(options, from); value != "" && textOption(options, to) == "" {
+		options[to] = value
+	}
+	delete(options, from)
+}
+
+func textOption(options map[string]any, key string) string {
+	value, _ := options[key].(string)
+	return strings.TrimSpace(value)
+}
+
+func optionEnabled(options map[string]any, key string) bool {
+	switch strings.ToLower(textOption(options, key)) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
 	}
 }
 
@@ -138,9 +214,14 @@ func normalizedShareNode(parsed *url.URL, protocol Protocol, server string, port
 	name, _ := url.QueryUnescape(parsed.Fragment)
 	name = strings.TrimSpace(name)
 	if name == "" {
+		name = strings.TrimSpace(parsed.Query().Get("remarks"))
+	}
+	if name == "" {
 		name = server
 	}
-	node := Node{Name: name, Protocol: protocol, Server: server, Port: port, Options: options}
+	udp := optionEnabled(options, "udp")
+	delete(options, "udp")
+	node := Node{Name: name, Protocol: protocol, Server: server, Port: port, UDP: udp, Options: options}
 	id, err := stableNodeID(node)
 	if err != nil {
 		return Node{}, fmt.Errorf("identify shared node: %w", err)

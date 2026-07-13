@@ -94,6 +94,42 @@ func TestImportShareLinksSupportsVLESSReality(t *testing.T) {
 	}
 }
 
+func TestImportShareLinksSupportsShadowrocketEncodedVLESS(t *testing.T) {
+	payload := ":00000000-0000-0000-0000-000000000001@edge.example.test:443"
+	encoded := base64.RawURLEncoding.EncodeToString([]byte(payload))
+	link := "vless://" + encoded + "?remarks=Pentagon&tls=1&peer=images.example.test&udp=1&xtls=2&pbk=test-public-key&sid=test-short-id&fingerprint=chrome"
+	result, err := ImportShareLinks([]byte(link))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Nodes) != 1 || len(result.Issues) != 0 {
+		t.Fatalf("result = %+v", result)
+	}
+	node := result.Nodes[0]
+	if node.Name != "Pentagon" || node.Server != "edge.example.test" || node.Port != 443 || !node.UDP {
+		t.Fatalf("Shadowrocket VLESS node = %+v", node)
+	}
+	wantOptions := map[string]string{
+		"uuid":     "00000000-0000-0000-0000-000000000001",
+		"security": "reality",
+		"sni":      "images.example.test",
+		"flow":     "xtls-rprx-vision",
+		"fp":       "chrome",
+		"pbk":      "test-public-key",
+		"sid":      "test-short-id",
+	}
+	for key, want := range wantOptions {
+		if got := node.Options[key]; got != want {
+			t.Errorf("option %s = %v, want %q", key, got, want)
+		}
+	}
+	for _, alias := range []string{"remarks", "tls", "xtls", "peer", "fingerprint", "udp"} {
+		if _, exists := node.Options[alias]; exists {
+			t.Errorf("Shadowrocket alias %q was not removed", alias)
+		}
+	}
+}
+
 func TestImportShareLinksDoesNotLeakCredentialInIssue(t *testing.T) {
 	_, err := ImportShareLinks([]byte("trojan://do-not-log-this@missing-port.example.test"))
 	if err == nil {
