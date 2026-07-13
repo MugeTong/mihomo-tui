@@ -15,7 +15,7 @@ MIHOMO_BASE_URL := https://github.com/MetaCubeX/mihomo/releases/download/v$(MIHO
 GEOIP_ASSET_URL := https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.metadb
 GEOIP_CHECKSUM_URL := $(GEOIP_ASSET_URL).sha256sum
 
-.PHONY: build run test
+.PHONY: build format run test
 
 build:
 	@rm -rf $(BUILD_DIR) $(RELEASE_DIR)/linux-amd64 $(RELEASE_DIR)/linux-arm64
@@ -45,26 +45,16 @@ build:
 			darwin-arm64) asset=mihomo-darwin-arm64-go124-v$(MIHOMO_VERSION).gz; sha=531e071c9fbb1e096fac0844cdf0e39a19b2ec3466496c58abded01e7545fdb4 ;; \
 		esac; \
 		echo "Building $$name with Mihomo v$(MIHOMO_VERSION)"; \
-		mkdir -p $$stage/payload; \
-		CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch $(GO) build -ldflags "$(LDFLAGS)" -o $$stage/payload/mhmt $(CLIENT_SRC); \
+		mkdir -p $$stage; \
+		CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch $(GO) build -ldflags "$(LDFLAGS)" -o $$stage/mhmt $(CLIENT_SRC); \
 		if [ -n "$(MIHOMO_ASSET_DIR)" ] && [ -f "$(MIHOMO_ASSET_DIR)/$$asset" ]; then \
-			cp "$(MIHOMO_ASSET_DIR)/$$asset" $$stage/payload/mihomo.gz; \
+			cp "$(MIHOMO_ASSET_DIR)/$$asset" $$stage/mihomo.gz; \
 		else \
-			$(CURL) --fail --location --silent --show-error "$(MIHOMO_BASE_URL)/$$asset" -o $$stage/payload/mihomo.gz; \
+			$(CURL) --fail --location --silent --show-error "$(MIHOMO_BASE_URL)/$$asset" -o $$stage/mihomo.gz; \
 		fi; \
-		actual=$$(shasum -a 256 $$stage/payload/mihomo.gz | awk '{print $$1}'); \
+		actual=$$(shasum -a 256 $$stage/mihomo.gz | awk '{print $$1}'); \
 		if [ "$$actual" != "$$sha" ]; then echo "Checksum mismatch for $$asset" >&2; exit 1; fi; \
-		cp LICENSE $$stage/payload/LICENSE; \
-		cp THIRD_PARTY_NOTICES.md $$stage/payload/THIRD_PARTY_NOTICES.md; \
-		cp licenses/mihomo-GPL-3.0.txt $$stage/payload/mihomo-GPL-3.0.txt; \
-		cp licenses/bubbletea-MIT.txt $$stage/payload/bubbletea-MIT.txt; \
-		cp licenses/mihomo-GPL-3.0.txt $$stage/payload/meta-rules-dat-GPL-3.0.txt; \
-		cp $(BUILD_DIR)/geoip.metadb $$stage/payload/geoip.metadb; \
-		echo "Mihomo v$(MIHOMO_VERSION) corresponding source:" > $$stage/payload/MIHOMO_SOURCE.txt; \
-		echo "https://github.com/MetaCubeX/mihomo/tree/v$(MIHOMO_VERSION)" >> $$stage/payload/MIHOMO_SOURCE.txt; \
-		echo "MetaCubeX meta-rules-dat geoip.metadb corresponding source:" > $$stage/payload/META_RULES_SOURCE.txt; \
-		echo "https://github.com/MetaCubeX/meta-rules-dat" >> $$stage/payload/META_RULES_SOURCE.txt; \
-		echo "Official rolling release, SHA-256 $$(cat $(BUILD_DIR)/geoip.metadb.sha256)" >> $$stage/payload/META_RULES_SOURCE.txt; \
+		cp $(BUILD_DIR)/geoip.metadb $$stage/geoip.metadb; \
 		cp $(INSTALLER_SRC) $$stage/main.go; \
 		CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch $(GO) build \
 			-ldflags "$(LDFLAGS) -X main.coreVersion=$(MIHOMO_VERSION)" \
@@ -76,6 +66,10 @@ build:
 ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 run:
 	@$(GO) run $(CLIENT_SRC) $(ARGS)
+
+format:
+	@echo "🎨 Formatting code..."
+	@gofmt -s -w .
 
 test:
 	@$(GO) test ./...

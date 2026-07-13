@@ -3,7 +3,7 @@ package config
 import (
 	"path/filepath"
 
-	"mihomo-tui/internal/xdg"
+	"mihomo-tui/internal/local"
 )
 
 const (
@@ -45,7 +45,7 @@ func DefaultPolicies() []Policy {
 
 func Default() Config {
 	configPath := filepath.Join("~", ".config", "mihomo-tui", "config.yaml")
-	if directory, err := xdg.AppConfigDir("mihomo-tui"); err == nil {
+	if directory, err := local.ConfigDir(); err == nil {
 		configPath = filepath.Join(directory, "config.yaml")
 	}
 	return Config{

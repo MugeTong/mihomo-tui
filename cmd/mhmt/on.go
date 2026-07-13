@@ -24,7 +24,6 @@ func createOnCmd() *cobra.Command {
 			fmt.Println("export HTTP_PROXY=\"$http_proxy\"")
 			fmt.Println("export HTTPS_PROXY=\"$https_proxy\"")
 			fmt.Println("export ALL_PROXY=\"$all_proxy\"")
-			fmt.Printf("printf '%%s\\n' 'Shell proxy enabled'\n")
 			return nil
 		},
 	}

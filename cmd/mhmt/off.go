@@ -14,7 +14,6 @@ func createOffCmd() *cobra.Command {
 		RunE: func(_ *cobra.Command, _ []string) error {
 			fmt.Println("unset http_proxy https_proxy all_proxy")
 			fmt.Println("unset HTTP_PROXY HTTPS_PROXY ALL_PROXY")
-			fmt.Printf("printf '%%s\\n' 'Shell proxy disabled'\n")
 			return nil
 		},
 	}

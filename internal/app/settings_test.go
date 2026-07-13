@@ -10,12 +10,12 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-func TestSettingsShowsXDGStatePathAsReadOnly(t *testing.T) {
-	home := filepath.Join(t.TempDir(), "xdg")
-	t.Setenv("XDG_CONFIG_HOME", home)
+func TestSettingsShowsLocalStatePathAsReadOnly(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
 	p := newSettingsPage(config.Default()).(settingsPage)
 	view := p.View(120, 30)
-	if want := filepath.Join(home, "mihomo-tui", "state.json"); !containsText(view, want) {
+	if want := filepath.Join(home, ".config", "mihomo-tui", "state.json"); !containsText(view, want) {
 		t.Fatalf("settings view does not contain state path %q", want)
 	}
 }

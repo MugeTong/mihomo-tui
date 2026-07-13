@@ -5,13 +5,13 @@ import (
 	"testing"
 )
 
-func TestDefaultPathsFollowXDGConfigHome(t *testing.T) {
-	home := filepath.Join(t.TempDir(), "xdg")
-	t.Setenv("XDG_CONFIG_HOME", home)
-	if got, want := Default().ConfigPath, filepath.Join(home, "mihomo-tui", "config.yaml"); got != want {
+func TestDefaultPathsUseFixedHomeLayout(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	if got, want := Default().ConfigPath, filepath.Join(home, ".config", "mihomo-tui", "config.yaml"); got != want {
 		t.Fatalf("runtime config path = %q, want %q", got, want)
 	}
-	if got, err := Path(); err != nil || got != filepath.Join(home, "mihomo-tui", "config.json") {
+	if got, err := Path(); err != nil || got != filepath.Join(home, ".config", "mihomo-tui", "config.json") {
 		t.Fatalf("app config path = %q, err = %v", got, err)
 	}
 }

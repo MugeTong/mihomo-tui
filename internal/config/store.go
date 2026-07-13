@@ -7,10 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"mihomo-tui/internal/xdg"
+	"mihomo-tui/internal/local"
 )
-
-const appDirName = "mihomo-tui"
 
 func Load() (Config, error) {
 	cfg := Default()
@@ -77,7 +75,7 @@ func Save(cfg Config) error {
 }
 
 func Path() (string, error) {
-	configDir, err := xdg.AppConfigDir(appDirName)
+	configDir, err := local.ConfigDir()
 	if err != nil {
 		return "", fmt.Errorf("locate user config directory: %w", err)
 	}

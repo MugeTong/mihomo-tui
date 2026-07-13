@@ -49,14 +49,14 @@ func TestStoreRoundTripUsesPrivateAtomicFile(t *testing.T) {
 	}
 }
 
-func TestDefaultStatePathFollowsXDGConfigHome(t *testing.T) {
-	home := filepath.Join(t.TempDir(), "xdg")
-	t.Setenv("XDG_CONFIG_HOME", home)
+func TestDefaultStatePathUsesFixedHomeLayout(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
 	got, err := DefaultStatePath()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := filepath.Join(home, "mihomo-tui", "state.json"); got != want {
+	if want := filepath.Join(home, ".config", "mihomo-tui", "state.json"); got != want {
 		t.Fatalf("state path = %q, want %q", got, want)
 	}
 }

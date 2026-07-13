@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"mihomo-tui/internal/xdg"
+	"mihomo-tui/internal/local"
 )
 
 type Store struct {
@@ -15,7 +15,7 @@ type Store struct {
 }
 
 func DefaultStatePath() (string, error) {
-	configDir, err := xdg.AppConfigDir("mihomo-tui")
+	configDir, err := local.ConfigDir()
 	if err != nil {
 		return "", fmt.Errorf("locate user config directory: %w", err)
 	}
