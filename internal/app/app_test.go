@@ -32,6 +32,18 @@ func TestRulesPageDoesNotOverflowRootFrame(t *testing.T) {
 	}
 }
 
+func TestHeaderShowsCurrentPageHelp(t *testing.T) {
+	m := newModel(nil, &recordingManager{}, config.Default())
+	m.width = 160
+	m.height = 30
+	view := m.View()
+	for _, want := range []string{"space core", "d delay", "tab switch"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("header does not contain %q: %q", want, view)
+		}
+	}
+}
+
 func TestTabBelongsToActivePageInput(t *testing.T) {
 	manager := &recordingManager{}
 	m := newModel(nil, manager, config.Default())

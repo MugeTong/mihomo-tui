@@ -84,7 +84,7 @@ func TestHomeLoadsNodesAndPoliciesFromConfigSnapshot(t *testing.T) {
 		t.Fatalf("home = %+v", p)
 	}
 	view := p.View(100, 30)
-	for _, want := range []string{"Proxy", "Tokyo", "Offline Snapshot", "stopped"} {
+	for _, want := range []string{"Proxy", "Tokyo", "Stopped"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("home view missing %q: %q", want, view)
 		}
@@ -96,7 +96,7 @@ func TestHomeLoadsNodesAndPoliciesFromConfigSnapshot(t *testing.T) {
 	}
 }
 
-func TestHomeShowsControllerAndCoreStatusIndependently(t *testing.T) {
+func TestHomeShowsErrorWhenRunningCoreHasNoController(t *testing.T) {
 	p := homePage{
 		coreManager: core.NewMockManager(core.StatusRunning),
 		groups:      []mihomo.ProxyGroup{{Name: "Proxy"}},
@@ -105,13 +105,8 @@ func TestHomeShowsControllerAndCoreStatusIndependently(t *testing.T) {
 	page, _ := p.Update(proxyGroupsLoadedMsg{err: fmt.Errorf("connection refused")})
 	p = page.(homePage)
 	view := p.View(100, 20)
-	for _, want := range []string{"Offline Snapshot", "running"} {
-		if !strings.Contains(view, want) {
-			t.Fatalf("home view missing %q: %q", want, view)
-		}
-	}
-	if strings.Contains(view, "Connected") {
-		t.Fatalf("home view claims controller is connected: %q", view)
+	if !strings.Contains(view, "Error") {
+		t.Fatalf("home view does not report controller failure: %q", view)
 	}
 }
 

@@ -48,9 +48,12 @@ func (m *ProcessManager) Status() Status {
 		return m.status
 	}
 	pid, err := readPID(m.opts.PIDPath)
-	if err == nil && processAlive(pid) {
+	if err == nil && m.managedProcessAlive(pid) {
 		m.status = StatusRunning
 		return m.status
+	}
+	if err == nil {
+		_ = os.Remove(m.opts.PIDPath)
 	}
 	if (err == nil || errors.Is(err, os.ErrNotExist)) && m.status != StatusFailed {
 		m.status = StatusStopped
@@ -152,7 +155,7 @@ func (m *ProcessManager) Stop() error {
 		m.setFailed()
 		return err
 	}
-	if !processAlive(pid) {
+	if !m.managedProcessAlive(pid) {
 		_ = os.Remove(m.opts.PIDPath)
 		m.setStopped()
 		return nil
@@ -174,6 +177,9 @@ func (m *ProcessManager) Restart(ctx context.Context) error {
 }
 
 func (m *ProcessManager) stopPID(pid int) error {
+	if !m.managedProcessAlive(pid) {
+		return nil
+	}
 	process, err := os.FindProcess(pid)
 	if err != nil {
 		return fmt.Errorf("find mihomo process: %w", err)
@@ -182,16 +188,45 @@ func (m *ProcessManager) stopPID(pid int) error {
 		return fmt.Errorf("interrupt mihomo: %w", err)
 	}
 	deadline := time.Now().Add(stopTimeout)
-	for processAlive(pid) && time.Now().Before(deadline) {
+	for m.managedProcessAlive(pid) && time.Now().Before(deadline) {
 		time.Sleep(50 * time.Millisecond)
 	}
-	if !processAlive(pid) {
+	if !m.managedProcessAlive(pid) {
 		return nil
 	}
 	if err := process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
 		return fmt.Errorf("kill mihomo after timeout: %w", err)
 	}
 	return nil
+}
+
+func (m *ProcessManager) managedProcessAlive(pid int) bool {
+	if !processAlive(pid) {
+		return false
+	}
+	command, err := processCommand(pid)
+	if err != nil {
+		return false
+	}
+	binaryPath := strings.TrimSpace(m.opts.BinaryPath)
+	configPath := strings.TrimSpace(m.opts.ConfigPath)
+	return binaryPath != "" && configPath != "" &&
+		strings.Contains(command, binaryPath) && strings.Contains(command, configPath)
+}
+
+func processCommand(pid int) (string, error) {
+	if pid <= 0 {
+		return "", fmt.Errorf("invalid PID %d", pid)
+	}
+	output, err := exec.Command("ps", "-p", strconv.Itoa(pid), "-o", "command=").Output()
+	if err != nil {
+		return "", fmt.Errorf("inspect process %d: %w", pid, err)
+	}
+	command := strings.TrimSpace(string(output))
+	if command == "" {
+		return "", fmt.Errorf("process %d has no command", pid)
+	}
+	return command, nil
 }
 
 func (m *ProcessManager) wait(cmd *exec.Cmd) {

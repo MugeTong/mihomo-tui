@@ -132,7 +132,8 @@ func (m model) View() string {
 
 	title := titleStyle.Render(" Mihomo TUI")
 	helpWidth := max(innerWidth-lipgloss.Width(title)-1, 0)
-	helpText := truncateCells("tab switch • q leave • ^C stop", helpWidth)
+	helpText := "tab switch • " + m.currentPage().Help() + " • q leave • ^C stop"
+	helpText = truncateCells(helpText, helpWidth)
 	help := helpStyle.Render(helpText)
 	rightSide := help
 	gap := max(innerWidth-lipgloss.Width(title)-lipgloss.Width(rightSide), 0)

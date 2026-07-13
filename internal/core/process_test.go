@@ -35,7 +35,8 @@ func TestProcessManagerPersistsOwnershipAcrossManagers(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = first.Stop() })
 	if got := first.Status(); got != StatusRunning {
-		t.Fatalf("first Status() = %s, want %s", got, StatusRunning)
+		command, commandErr := processCommand(first.cmd.Process.Pid)
+		t.Fatalf("first Status() = %s, want %s; command=%q err=%v", got, StatusRunning, command, commandErr)
 	}
 
 	second := NewProcessManager(opts)
@@ -70,5 +71,24 @@ func TestProcessManagerReportsStartFailure(t *testing.T) {
 	}
 	if got := manager.Status(); got != StatusFailed {
 		t.Fatalf("Status() = %s, want %s", got, StatusFailed)
+	}
+}
+
+func TestProcessManagerRejectsReusedPID(t *testing.T) {
+	dir := t.TempDir()
+	pidPath := filepath.Join(dir, "mihomo.pid")
+	if err := writePID(pidPath, os.Getpid()); err != nil {
+		t.Fatal(err)
+	}
+	manager := NewProcessManager(ProcessOptions{
+		BinaryPath: "/not/the/test/process/mihomo",
+		ConfigPath: filepath.Join(dir, "config.yaml"),
+		PIDPath:    pidPath,
+	})
+	if got := manager.Status(); got != StatusStopped {
+		t.Fatalf("Status() = %s, want %s for reused PID", got, StatusStopped)
+	}
+	if _, err := os.Stat(pidPath); !os.IsNotExist(err) {
+		t.Fatalf("stale PID file was not removed: %v", err)
 	}
 }

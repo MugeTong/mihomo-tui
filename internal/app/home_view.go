@@ -22,34 +22,30 @@ func (p homePage) View(width, height int) string {
 }
 
 func (p homePage) Help() string {
-	return "left/right group • up/down node • enter select • space core"
+	return "space core • d delay • enter select • arrows navigate"
 }
 
 func (p homePage) renderStatusSection() string {
 	title := titleStyle.Render("Status")
-
-	connection := offStyle.Render("Disconnected")
-	if p.connected {
-		connection = onStyle.Render("Connected")
-	} else if p.snapshot && len(p.groups) > 0 {
-		connection = warningStyle.Render("Offline Snapshot")
-	}
-
-	body := labelStyle.Render("  Controller: ") + connection + "\n" +
-		labelStyle.Render("  Core:       ") + renderCoreStatus(p.coreStatus()) + "\n" +
+	body := labelStyle.Render("  State:      ") + renderHomeState(p) + "\n" +
 		labelStyle.Render("  Mode:       ") + valueStyle.Render(p.proxyMode)
 
 	return title + "\n\n" + body
 }
 
-func renderCoreStatus(status core.Status) string {
-	switch status {
-	case core.StatusRunning:
-		return onStyle.Render(string(status))
-	case core.StatusStarting, core.StatusStopping:
-		return warningStyle.Render(string(status))
+func renderHomeState(p homePage) string {
+	status := p.coreStatus()
+	switch {
+	case status == core.StatusStarting || p.connecting && status == core.StatusRunning:
+		return warningStyle.Render("Starting")
+	case status == core.StatusStopping:
+		return warningStyle.Render("Stopping")
+	case status == core.StatusRunning && p.connected:
+		return onStyle.Render("Running")
+	case status == core.StatusStopped:
+		return offStyle.Render("Stopped")
 	default:
-		return offStyle.Render(string(status))
+		return offStyle.Render("Error")
 	}
 }
 
@@ -125,9 +121,9 @@ func (p homePage) renderNodesSection(width, height int) string {
 }
 
 func (p homePage) nodesViewportHeight(contentHeight int) int {
-	// Status is five lines, groups are three, and the two section gaps each
+	// Status is four lines, groups are three, and the two section gaps each
 	// contribute one blank line.
-	const rowsBeforeNodes = 5 + 3 + 2
+	const rowsBeforeNodes = 4 + 3 + 2
 	return max(contentHeight-rowsBeforeNodes, 1)
 }
 

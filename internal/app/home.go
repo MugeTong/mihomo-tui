@@ -24,6 +24,7 @@ type homePage struct {
 	err         string
 	snapshot    bool
 	connected   bool
+	connecting  bool
 }
 
 type proxyGroupsLoadedMsg struct {
@@ -62,11 +63,13 @@ type coreStoppedMsg struct {
 }
 
 func newHomePage(client *mihomo.Client, coreManager core.Manager, cfg config.Config) Page {
+	connecting := coreManager != nil && coreManager.Status() == core.StatusRunning
 	return homePage{
 		client:      client,
 		coreManager: coreManager,
 		cfg:         cfg,
 		proxyMode:   "Rule",
+		connecting:  connecting,
 	}
 }
 
@@ -80,6 +83,7 @@ func (p homePage) Update(msg tea.Msg) (Page, tea.Cmd) {
 		return p.updateKey(msg)
 	case proxyGroupsLoadedMsg:
 		p.loading = false
+		p.connecting = false
 		if msg.err != nil {
 			p.connected = false
 			p.err = msg.err.Error()
@@ -133,15 +137,18 @@ func (p homePage) Update(msg tea.Msg) (Page, tea.Cmd) {
 	case coreStartedMsg:
 		p.loading = false
 		if msg.err != nil {
+			p.connecting = false
 			p.err = msg.err.Error()
 			p.status = "Core start failed"
 			return p, nil
 		}
 		p.err = ""
-		p.status = "Core started"
+		p.status = "Connecting to controller"
+		p.connecting = true
 		return p, p.loadProxyGroups()
 	case coreStoppedMsg:
 		p.loading = false
+		p.connecting = false
 		if msg.err != nil {
 			p.err = msg.err.Error()
 			p.status = "Core stop failed"
