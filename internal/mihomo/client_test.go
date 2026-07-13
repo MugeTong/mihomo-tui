@@ -91,7 +91,7 @@ func TestConnectionsSummarizesNetworks(t *testing.T) {
 			"downloadTotal": 4096,
 			"uploadTotal":   1024,
 			"connections": []map[string]any{
-				{"metadata": map[string]string{"network": "tcp"}},
+				{"metadata": map[string]string{"network": "tcp", "host": "api.openai.com", "destinationPort": "443"}, "chains": []string{"Proxy", "Tokyo"}, "rule": "DOMAIN-SUFFIX"},
 				{"metadata": map[string]string{"network": "TCP"}},
 				{"metadata": map[string]string{"network": "udp"}},
 			},
@@ -109,6 +109,9 @@ func TestConnectionsSummarizesNetworks(t *testing.T) {
 	}
 	if snapshot.DownloadTotal != 4096 || snapshot.UploadTotal != 1024 || snapshot.Connections != 3 || snapshot.TCP != 2 || snapshot.UDP != 1 {
 		t.Fatalf("snapshot = %+v", snapshot)
+	}
+	if len(snapshot.Active) != 3 || snapshot.Active[0].Target != "api.openai.com:443" || snapshot.Active[0].Route != "Proxy → Tokyo" {
+		t.Fatalf("active connections = %+v", snapshot.Active)
 	}
 }
 

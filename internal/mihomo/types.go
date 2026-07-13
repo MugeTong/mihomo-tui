@@ -12,6 +12,14 @@ type ConnectionsSnapshot struct {
 	Connections   int
 	TCP           int
 	UDP           int
+	Active        []ConnectionSummary
+}
+
+type ConnectionSummary struct {
+	Target  string
+	Network string
+	Rule    string
+	Route   string
 }
 
 type connectionsResponse struct {
@@ -22,10 +30,15 @@ type connectionsResponse struct {
 
 type connection struct {
 	Metadata connectionMetadata `json:"metadata"`
+	Chains   []string           `json:"chains"`
+	Rule     string             `json:"rule"`
 }
 
 type connectionMetadata struct {
-	Network string `json:"network"`
+	Network         string `json:"network"`
+	Host            string `json:"host"`
+	DestinationIP   string `json:"destinationIP"`
+	DestinationPort string `json:"destinationPort"`
 }
 
 type ProxyGroup struct {

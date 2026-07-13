@@ -72,6 +72,19 @@ func (c *Client) Connections() (ConnectionsSnapshot, error) {
 		case "udp":
 			snapshot.UDP++
 		}
+		target := connection.Metadata.Host
+		if target == "" {
+			target = connection.Metadata.DestinationIP
+		}
+		if connection.Metadata.DestinationPort != "" {
+			target += ":" + connection.Metadata.DestinationPort
+		}
+		snapshot.Active = append(snapshot.Active, ConnectionSummary{
+			Target:  target,
+			Network: strings.ToUpper(connection.Metadata.Network),
+			Rule:    connection.Rule,
+			Route:   strings.Join(connection.Chains, " → "),
+		})
 	}
 	return snapshot, nil
 }
