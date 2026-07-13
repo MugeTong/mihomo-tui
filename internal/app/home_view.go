@@ -5,8 +5,6 @@ import (
 	"strings"
 
 	"mihomo-tui/internal/core"
-
-	"github.com/charmbracelet/lipgloss"
 )
 
 func (p homePage) View(width, height int) string {
@@ -27,8 +25,8 @@ func (p homePage) Help() string {
 
 func (p homePage) renderStatusSection() string {
 	title := titleStyle.Render("Status")
-	body := labelStyle.Render("  State:      ") + renderHomeState(p) + "\n" +
-		labelStyle.Render("  Mode:       ") + valueStyle.Render(p.proxyMode)
+	body := labelStyle.Render("  State:  ") + renderHomeState(p) +
+		labelStyle.Render("    Mode:  ") + valueStyle.Render(p.proxyMode)
 
 	return title + "\n\n" + body
 }
@@ -72,11 +70,8 @@ func (p homePage) renderGroupsSection(_ int) string {
 	return title + "\n\n" + line
 }
 
-func (p homePage) renderNodesSection(width, height int) string {
+func (p homePage) renderNodesSection(_ int, height int) string {
 	title := titleStyle.Render("Nodes")
-	buttons := btnDisabledStyle.Render("Delay")
-	gap := max(width-lipgloss.Width(title)-lipgloss.Width(buttons), 1)
-	titleLine := title + strings.Repeat(" ", gap) + buttons
 
 	var nodeList string
 	nodes := p.visibleNodes()
@@ -117,13 +112,13 @@ func (p homePage) renderNodesSection(width, height int) string {
 		nodeList = strings.Join(lines, "\n")
 	}
 
-	return titleLine + "\n\n" + nodeList
+	return title + "\n\n" + nodeList
 }
 
 func (p homePage) nodesViewportHeight(contentHeight int) int {
-	// Status is four lines, groups are three, and the two section gaps each
+	// Status and groups are three lines each, and the two section gaps each
 	// contribute one blank line.
-	const rowsBeforeNodes = 4 + 3 + 2
+	const rowsBeforeNodes = 3 + 3 + 2
 	return max(contentHeight-rowsBeforeNodes, 1)
 }
 

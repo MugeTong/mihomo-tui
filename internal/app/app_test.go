@@ -21,7 +21,7 @@ type recordingManager struct {
 
 func TestRulesPageDoesNotOverflowRootFrame(t *testing.T) {
 	manager := &recordingManager{}
-	m := newModel(nil, manager, config.Default())
+	m := newModel(nil, manager, config.Default(), "test")
 	m.cursor = int(pageRules)
 	m.width = 120
 	m.height = 30
@@ -34,7 +34,7 @@ func TestRulesPageDoesNotOverflowRootFrame(t *testing.T) {
 }
 
 func TestHeaderShowsCurrentPageHelp(t *testing.T) {
-	m := newModel(nil, &recordingManager{}, config.Default())
+	m := newModel(nil, &recordingManager{}, config.Default(), "test")
 	m.width = 160
 	m.height = 30
 	view := m.View()
@@ -47,7 +47,7 @@ func TestHeaderShowsCurrentPageHelp(t *testing.T) {
 
 func TestTabBelongsToActivePageInput(t *testing.T) {
 	manager := &recordingManager{}
-	m := newModel(nil, manager, config.Default())
+	m := newModel(nil, manager, config.Default(), "test")
 	m.cursor = int(pageSources)
 	sources := m.currentPage().(sourcesPage)
 	sources.focused = true
@@ -74,7 +74,7 @@ func (m *recordingManager) Stop() error {
 
 func TestQLeavesTUIWithoutStoppingCore(t *testing.T) {
 	manager := &recordingManager{}
-	m := newModel(nil, manager, config.Default())
+	m := newModel(nil, manager, config.Default(), "test")
 	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
 	if _, ok := cmd().(tea.QuitMsg); !ok {
 		t.Fatal("q did not request TUI quit")
@@ -86,7 +86,7 @@ func TestQLeavesTUIWithoutStoppingCore(t *testing.T) {
 
 func TestQIsTextWhileRulesSearchIsActive(t *testing.T) {
 	manager := &recordingManager{}
-	m := newModel(nil, manager, config.Default())
+	m := newModel(nil, manager, config.Default(), "test")
 	m.cursor = int(pageRules)
 	rules := m.currentPage().(rulesPage)
 	rules.searching = true
@@ -104,7 +104,7 @@ func TestQIsTextWhileRulesSearchIsActive(t *testing.T) {
 
 func TestCtrlCStopsCoreBeforeQuitting(t *testing.T) {
 	manager := &recordingManager{}
-	m := newModel(nil, manager, config.Default())
+	m := newModel(nil, manager, config.Default(), "test")
 	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
 	stopResult := cmd()
 	if manager.stopCalls != 1 {
@@ -118,7 +118,7 @@ func TestCtrlCStopsCoreBeforeQuitting(t *testing.T) {
 
 func TestCtrlCStaysOpenWhenCoreStopFails(t *testing.T) {
 	manager := &recordingManager{stopErr: errors.New("busy")}
-	m := newModel(nil, manager, config.Default())
+	m := newModel(nil, manager, config.Default(), "test")
 	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
 	result, quitCmd := updated.(model).Update(cmd())
 	if quitCmd != nil {

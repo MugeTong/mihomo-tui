@@ -19,7 +19,7 @@ func main() {
 		Long:          "A TUI for Mihomo, a tool to manage your nodes",
 		SilenceUsage:  true,
 		SilenceErrors: true,
-		RunE:          func(_ *cobra.Command, _ []string) error { return app.StartTUI() },
+		RunE:          func(_ *cobra.Command, _ []string) error { return app.StartTUI(version) },
 	}
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	rootCmd.AddCommand(createVersionCmd(), createStartCmd(), createStopCmd(), createOnCmd(), createOffCmd())

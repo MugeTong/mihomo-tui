@@ -32,16 +32,17 @@ type settingsPage struct {
 	buffer    string
 	status    string
 	err       string
+	version   string
 }
 
 type settingsSavedMsg struct{ err error }
 
-func newSettingsPage(cfg config.Config) Page {
+func newSettingsPage(cfg config.Config, version string) Page {
 	statePath, err := subscription.DefaultStatePath()
 	if err != nil {
 		statePath = "Unavailable: " + err.Error()
 	}
-	return settingsPage{cfg: cfg, statePath: statePath, status: "Ready"}
+	return settingsPage{cfg: cfg, statePath: statePath, status: "Ready", version: version}
 }
 
 func (p settingsPage) Init() tea.Cmd { return nil }
@@ -126,7 +127,7 @@ func (p settingsPage) View(_, _ int) string {
 		headerStyle.Render("About"),
 		p.renderReadOnly("Platform", runtime.GOOS),
 		p.renderReadOnly("Scope", "Proxy only"),
-		p.renderReadOnly("App Version", "dev"),
+		p.renderReadOnly("App Version", p.version),
 		p.renderReadOnly("License", "GPL-3.0-only"),
 		p.renderReadOnly("Homepage", "github.com/MugeTong/mihomo-tui"),
 		p.renderReadOnly("Thanks", "Mihomo contributors"),

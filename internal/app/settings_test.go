@@ -13,7 +13,7 @@ import (
 func TestSettingsShowsLocalStatePathAsReadOnly(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	p := newSettingsPage(config.Default()).(settingsPage)
+	p := newSettingsPage(config.Default(), "test").(settingsPage)
 	view := p.View(120, 30)
 	if want := filepath.Join(home, ".config", "mihomo-tui", "state.json"); !containsText(view, want) {
 		t.Fatalf("settings view does not contain state path %q", want)
@@ -21,7 +21,7 @@ func TestSettingsShowsLocalStatePathAsReadOnly(t *testing.T) {
 }
 
 func TestSettingsOnlyExposesSupportedEditableFields(t *testing.T) {
-	p := newSettingsPage(config.Default()).(settingsPage)
+	p := newSettingsPage(config.Default(), "test").(settingsPage)
 	view := p.View(80, 24)
 
 	for _, want := range []string{"HTTP Port", "SOCKS Port", "Mixed Port", "Config File", "State File", "Mihomo Bin"} {
@@ -37,9 +37,9 @@ func TestSettingsOnlyExposesSupportedEditableFields(t *testing.T) {
 }
 
 func TestSettingsAboutIncludesCreditsAndHomepage(t *testing.T) {
-	p := newSettingsPage(config.Default()).(settingsPage)
+	p := newSettingsPage(config.Default(), "test-version").(settingsPage)
 	view := p.View(100, 30)
-	for _, want := range []string{"GPL-3.0-only", "Mihomo contributors", "Bubble Tea", "Shadowrocket", "github.com/MugeTong/mihomo-tui"} {
+	for _, want := range []string{"test-version", "GPL-3.0-only", "Mihomo contributors", "Bubble Tea", "Shadowrocket", "github.com/MugeTong/mihomo-tui"} {
 		if !containsText(view, want) {
 			t.Fatalf("about view does not contain %q", want)
 		}
@@ -47,7 +47,7 @@ func TestSettingsAboutIncludesCreditsAndHomepage(t *testing.T) {
 }
 
 func TestSettingsAcceptsQWhileEditingPath(t *testing.T) {
-	p := newSettingsPage(config.Default()).(settingsPage)
+	p := newSettingsPage(config.Default(), "test").(settingsPage)
 	p.cursor = fieldConfigPath
 	p.editing = true
 	p.buffer = ""

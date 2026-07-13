@@ -23,9 +23,9 @@ type model struct {
 
 type coreStoppedAndQuitMsg struct{ err error }
 
-func newModel(client *mihomo.Client, coreManager core.Manager, cfg config.Config) model {
+func newModel(client *mihomo.Client, coreManager core.Manager, cfg config.Config, version string) model {
 	return model{
-		pages:       newPages(client, coreManager, cfg),
+		pages:       newPages(client, coreManager, cfg, version),
 		coreManager: coreManager,
 	}
 }
@@ -184,7 +184,7 @@ func (m model) renderMessageBar(width int) string {
 	return messageBarStyle.Width(width).Render(prefix + statusMessageStyle.Render(message))
 }
 
-func StartTUI() error {
+func StartTUI(version string) error {
 	cfg, err := config.Load()
 	if err != nil {
 		return err
@@ -199,7 +199,7 @@ func StartTUI() error {
 	if err != nil {
 		return err
 	}
-	p := tea.NewProgram(newModel(client, coreManager, cfg), tea.WithAltScreen())
+	p := tea.NewProgram(newModel(client, coreManager, cfg, version), tea.WithAltScreen())
 	_, err = p.Run()
 	return err
 }

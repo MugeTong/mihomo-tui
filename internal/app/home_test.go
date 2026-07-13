@@ -110,6 +110,27 @@ func TestHomeShowsErrorWhenRunningCoreHasNoController(t *testing.T) {
 	}
 }
 
+func TestHomeStatusAndModeShareOneLine(t *testing.T) {
+	p := homePage{
+		coreManager: &recordingManager{status: core.StatusStopped},
+		proxyMode:   "Rule",
+	}
+	view := p.renderStatusSection()
+	for _, line := range strings.Split(view, "\n") {
+		if strings.Contains(line, "Stopped") && strings.Contains(line, "Rule") {
+			return
+		}
+	}
+	t.Fatalf("status and mode are not on the same line: %q", view)
+}
+
+func TestHomeNodesDoesNotRenderFakeDelayButton(t *testing.T) {
+	p := homePage{}
+	if view := p.renderNodesSection(80, 10); strings.Contains(view, "Delay") {
+		t.Fatalf("nodes section contains fake delay button: %q", view)
+	}
+}
+
 func TestNodeWindowKeepsCursorVisible(t *testing.T) {
 	tests := []struct {
 		name        string

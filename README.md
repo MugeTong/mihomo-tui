@@ -18,7 +18,7 @@ Download the installer for your platform from the
 
 ```bash
 # Linux amd64
-curl -LO https://github.com/MugeTong/mihomo-tui/releases/latest/download/mihomo-tui-linux-amd64-installer
+wget https://github.com/MugeTong/mihomo-tui/releases/latest/download/mihomo-tui-linux-amd64-installer
 chmod +x mihomo-tui-linux-amd64-installer
 ./mihomo-tui-linux-amd64-installer
 ```
