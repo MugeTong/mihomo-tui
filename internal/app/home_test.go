@@ -70,6 +70,23 @@ func TestHomeUsesDirectGroupAndNodeNavigation(t *testing.T) {
 	}
 }
 
+func TestSpaceStopsCoreWhileItIsStarting(t *testing.T) {
+	manager := &recordingManager{status: core.StatusStarting}
+	p := homePage{coreManager: manager}
+
+	_, cmd := p.Update(tea.KeyMsg{Type: tea.KeySpace})
+	if cmd == nil {
+		t.Fatal("space returned no stop command while core was starting")
+	}
+	result := cmd()
+	if manager.stopCalls != 1 {
+		t.Fatalf("Stop calls = %d, want 1", manager.stopCalls)
+	}
+	if _, ok := result.(coreStoppedMsg); !ok {
+		t.Fatalf("space result = %T, want coreStoppedMsg", result)
+	}
+}
+
 func TestHomeLoadsNodesAndPoliciesFromConfigSnapshot(t *testing.T) {
 	cfg := config.Default()
 	cfg.ConfigPath = filepath.Join(t.TempDir(), "config.yaml")

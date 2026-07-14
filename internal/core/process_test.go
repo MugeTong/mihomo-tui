@@ -38,10 +38,22 @@ func TestProcessManagerPersistsOwnershipAcrossManagers(t *testing.T) {
 		command, commandErr := processCommand(first.cmd.Process.Pid)
 		t.Fatalf("first Status() = %s, want %s; command=%q err=%v", got, StatusRunning, command, commandErr)
 	}
+	startedPID, err := readPID(opts.PIDPath)
+	if err != nil {
+		t.Fatal(err)
+	}
 
+	// Losing the PID file must not orphan a still-running process. A new
+	// manager should recover the unique process from its binary and config.
+	if err := os.Remove(opts.PIDPath); err != nil {
+		t.Fatal(err)
+	}
 	second := NewProcessManager(opts)
 	if got := second.Status(); got != StatusRunning {
-		t.Fatalf("second Status() = %s, want %s", got, StatusRunning)
+		t.Fatalf("second Status() after PID recovery = %s, want %s", got, StatusRunning)
+	}
+	if recovered, err := readPID(opts.PIDPath); err != nil || recovered != startedPID {
+		t.Fatalf("recovered PID = %d, err = %v, want %d", recovered, err, startedPID)
 	}
 	if err := second.Stop(); err != nil {
 		t.Fatalf("Stop() error = %v", err)
@@ -90,5 +102,18 @@ func TestProcessManagerRejectsReusedPID(t *testing.T) {
 	}
 	if _, err := os.Stat(pidPath); !os.IsNotExist(err) {
 		t.Fatalf("stale PID file was not removed: %v", err)
+	}
+}
+
+func TestManagedCommandMatchUsesBinaryPathOnly(t *testing.T) {
+	manager := NewProcessManager(ProcessOptions{
+		BinaryPath: "/home/test/.local/share/mihomo-tui/bin/mihomo",
+		ConfigPath: "/home/test/.config/mihomo-tui/config.yaml",
+	})
+	if !manager.matchesManagedCommand("/home/test/.local/share/mihomo-tui/bin/mihomo -f /different/config.yaml") {
+		t.Fatal("configured binary with a changed config path was not matched")
+	}
+	if manager.matchesManagedCommand("/tmp/wrapper --note=/home/test/.local/share/mihomo-tui/bin/mihomo") {
+		t.Fatal("binary path substring was treated as an exact argument")
 	}
 }

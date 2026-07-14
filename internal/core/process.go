@@ -52,6 +52,21 @@ func (m *ProcessManager) Status() Status {
 		m.status = StatusRunning
 		return m.status
 	}
+	if errors.Is(err, os.ErrNotExist) {
+		pid, found, recoverErr := m.recoverManagedPID()
+		if recoverErr != nil {
+			m.status = StatusFailed
+			return m.status
+		}
+		if found {
+			if writeErr := writePID(m.opts.PIDPath, pid); writeErr != nil {
+				m.status = StatusFailed
+				return m.status
+			}
+			m.status = StatusRunning
+			return m.status
+		}
+	}
 	if err == nil {
 		_ = os.Remove(m.opts.PIDPath)
 	}
@@ -87,6 +102,9 @@ func (m *ProcessManager) start(ctx context.Context) error {
 	}
 	if strings.TrimSpace(m.opts.ConfigPath) == "" {
 		return fmt.Errorf("mihomo config path is empty")
+	}
+	if controllerAvailable(m.opts.ControllerAddress) {
+		return fmt.Errorf("mihomo controller %s is already in use by an unmanaged process", m.opts.ControllerAddress)
 	}
 	if err := os.MkdirAll(m.opts.DataDir, 0o700); err != nil {
 		return fmt.Errorf("create mihomo data directory: %w", err)
@@ -148,8 +166,20 @@ func (m *ProcessManager) Stop() error {
 
 	pid, err := readPID(m.opts.PIDPath)
 	if errors.Is(err, os.ErrNotExist) {
-		m.setStopped()
-		return nil
+		var found bool
+		pid, found, err = m.recoverManagedPID()
+		if err != nil {
+			m.setFailed()
+			return err
+		}
+		if !found {
+			m.setStopped()
+			return nil
+		}
+		if err := writePID(m.opts.PIDPath, pid); err != nil {
+			m.setFailed()
+			return err
+		}
 	}
 	if err != nil {
 		m.setFailed()
@@ -190,6 +220,13 @@ func (m *ProcessManager) stopPID(pid int) error {
 	if err := process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
 		return fmt.Errorf("kill mihomo after timeout: %w", err)
 	}
+	deadline = time.Now().Add(stopTimeout)
+	for m.managedProcessAlive(pid) && time.Now().Before(deadline) {
+		time.Sleep(50 * time.Millisecond)
+	}
+	if m.managedProcessAlive(pid) {
+		return fmt.Errorf("mihomo process %d is still running after forced stop", pid)
+	}
 	return nil
 }
 
@@ -201,17 +238,54 @@ func (m *ProcessManager) managedProcessAlive(pid int) bool {
 	if err != nil {
 		return false
 	}
+	return m.matchesManagedCommand(command)
+}
+
+func (m *ProcessManager) matchesManagedCommand(command string) bool {
 	binaryPath := strings.TrimSpace(m.opts.BinaryPath)
-	configPath := strings.TrimSpace(m.opts.ConfigPath)
-	return binaryPath != "" && configPath != "" &&
-		strings.Contains(command, binaryPath) && strings.Contains(command, configPath)
+	if binaryPath == "" {
+		return false
+	}
+	for _, argument := range strings.Fields(command) {
+		if argument == binaryPath {
+			return true
+		}
+	}
+	return false
+}
+
+func (m *ProcessManager) recoverManagedPID() (int, bool, error) {
+	output, err := exec.Command("ps", "-ww", "-axo", "pid=,command=").Output()
+	if err != nil {
+		return 0, false, fmt.Errorf("scan for managed mihomo process: %w", err)
+	}
+	matchedPID := 0
+	for _, line := range strings.Split(string(output), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+		pid, parseErr := strconv.Atoi(fields[0])
+		if parseErr != nil || pid <= 0 {
+			continue
+		}
+		command := strings.TrimSpace(strings.TrimPrefix(line, fields[0]))
+		if !m.matchesManagedCommand(command) {
+			continue
+		}
+		if matchedPID != 0 {
+			return 0, false, fmt.Errorf("multiple unmanaged Mihomo processes match the configured binary")
+		}
+		matchedPID = pid
+	}
+	return matchedPID, matchedPID != 0, nil
 }
 
 func processCommand(pid int) (string, error) {
 	if pid <= 0 {
 		return "", fmt.Errorf("invalid PID %d", pid)
 	}
-	output, err := exec.Command("ps", "-p", strconv.Itoa(pid), "-o", "command=").Output()
+	output, err := exec.Command("ps", "-ww", "-p", strconv.Itoa(pid), "-o", "command=").Output()
 	if err != nil {
 		return "", fmt.Errorf("inspect process %d: %w", pid, err)
 	}
@@ -272,6 +346,18 @@ func waitForController(ctx context.Context, address string, pid int) error {
 		case <-ticker.C:
 		}
 	}
+}
+
+func controllerAvailable(address string) bool {
+	if strings.TrimSpace(address) == "" {
+		return false
+	}
+	connection, err := net.DialTimeout("tcp", address, 100*time.Millisecond)
+	if err != nil {
+		return false
+	}
+	connection.Close()
+	return true
 }
 
 func processAlive(pid int) bool {

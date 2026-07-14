@@ -46,7 +46,10 @@ func TestApplySettingsPreservesRuntimeContent(t *testing.T) {
 	if document.HTTPPort != 8890 || document.SOCKSPort != 8891 || document.MixedPort != 8892 {
 		t.Fatalf("ports = %d/%d/%d", document.HTTPPort, document.SOCKSPort, document.MixedPort)
 	}
-	if len(document.Proxies) != 1 || document.Proxies[0]["name"] != "Tokyo" || len(document.Groups) != 1 || len(document.Rules) != 1 {
+	if len(document.Proxies) != 1 || document.Proxies[0]["name"] != "Tokyo" || len(document.Groups) != 1 {
 		t.Fatalf("runtime content was not preserved: %+v", document)
+	}
+	if len(document.Rules) != 1 || document.Rules[0] != "MATCH,Proxy" {
+		t.Fatalf("runtime rules were not preserved: %+v", document.Rules)
 	}
 }

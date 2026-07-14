@@ -12,6 +12,7 @@ rules:
 
   # Private artifact repositories
   - DOMAIN-KEYWORD,nexus,DIRECT
+  - DOMAIN-SUFFIX,edu.cn,DIRECT
 
   # AI and developer services
   - DOMAIN,copilot.microsoft.com,Proxy

@@ -344,10 +344,14 @@ func visibleHomeGroups(groups []mihomo.ProxyGroup) []mihomo.ProxyGroup {
 }
 
 func (p homePage) toggleCore() (Page, tea.Cmd) {
-	if p.coreStatus() == core.StatusRunning {
+	switch p.coreStatus() {
+	case core.StatusRunning, core.StatusStarting:
 		return p.startAction("Stopping core"), p.stopCore()
+	case core.StatusStopping:
+		return p, nil
+	default:
+		return p.startAction("Starting core"), p.startCore()
 	}
-	return p.startAction("Starting core"), p.startCore()
 }
 
 func firstDelayError(errs map[string]error) error {

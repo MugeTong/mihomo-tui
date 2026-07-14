@@ -43,3 +43,19 @@ func TestEmbeddedDefaultsRouteNexusDirectly(t *testing.T) {
 	}
 	t.Fatal("embedded defaults do not contain the nexus direct rule")
 }
+
+func TestEmbeddedDefaultsRouteEducationDomainsDirectly(t *testing.T) {
+	rules, err := Default()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, rule := range rules {
+		if rule.Type == "DOMAIN-SUFFIX" && rule.Value == "edu.cn" {
+			if rule.Policy != "DIRECT" {
+				t.Fatalf("edu.cn policy = %q, want DIRECT", rule.Policy)
+			}
+			return
+		}
+	}
+	t.Fatal("embedded defaults do not contain the edu.cn direct rule")
+}
