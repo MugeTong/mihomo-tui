@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"mihomo-tui/internal/config"
+	"mihomo-tui/internal/runtimeconfig"
 	"mihomo-tui/internal/subscription"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -25,14 +26,15 @@ const (
 const settingsFieldCount = int(fieldBinaryPath) + 1
 
 type settingsPage struct {
-	cfg       config.Config
-	statePath string
-	cursor    settingsField
-	editing   bool
-	buffer    string
-	status    string
-	err       string
-	version   string
+	cfg         config.Config
+	statePath   string
+	cursor      settingsField
+	editing     bool
+	buffer      string
+	status      string
+	err         string
+	version     string
+	runtimePath string
 }
 
 type settingsSavedMsg struct{ err error }
@@ -42,7 +44,7 @@ func newSettingsPage(cfg config.Config, version string) Page {
 	if err != nil {
 		statePath = "Unavailable: " + err.Error()
 	}
-	return settingsPage{cfg: cfg, statePath: statePath, status: "Ready", version: version}
+	return settingsPage{cfg: cfg, statePath: statePath, status: "Ready", version: version, runtimePath: cfg.ConfigPath}
 }
 
 func (p settingsPage) Init() tea.Cmd { return nil }
@@ -61,7 +63,8 @@ func (p settingsPage) Update(msg tea.Msg) (Page, tea.Cmd) {
 			return p, nil
 		}
 		p.err = ""
-		p.status = "Settings saved; restart to apply runtime changes"
+		p.runtimePath = p.cfg.ConfigPath
+		p.status = "Settings saved; restart core to apply changes"
 	}
 	return p, nil
 }
@@ -215,7 +218,13 @@ func (p *settingsPage) applyBuffer() error {
 
 func (p settingsPage) save() tea.Cmd {
 	cfg := p.cfg
-	return func() tea.Msg { return settingsSavedMsg{err: config.Save(cfg)} }
+	sourcePath := p.runtimePath
+	return func() tea.Msg {
+		if err := runtimeconfig.ApplySettings(sourcePath, cfg); err != nil {
+			return settingsSavedMsg{err: err}
+		}
+		return settingsSavedMsg{err: config.Save(cfg)}
+	}
 }
 
 func parsePort(value string) (int, error) {

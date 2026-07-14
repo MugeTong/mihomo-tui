@@ -56,7 +56,9 @@ mhmt version  Show the installed version
 
 The commands are intentionally independent: `on` does not start Mihomo, and
 `off` does not stop it. Both commands update proxy variables in the current
-shell through the integration configured by the installer.
+shell through the integration configured by the installer. New shell sessions
+automatically import those variables when the managed Mihomo core is already
+running; existing sessions can still use `mhmt on` and `mhmt off` explicitly.
 
 ## Installed Files
 

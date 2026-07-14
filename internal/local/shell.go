@@ -26,6 +26,9 @@ mhmt() {
             ;;
     esac
 }
+
+_mhmt_proxy_commands="$("$HOME/.local/bin/mhmt" on 2>/dev/null)" && eval "$_mhmt_proxy_commands"
+unset _mhmt_proxy_commands
 `
 
 func installShellIntegration(layout Layout) error {

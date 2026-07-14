@@ -1,11 +1,14 @@
 package app
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"mihomo-tui/internal/config"
+
+	"go.yaml.in/yaml/v3"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -56,6 +59,53 @@ func TestSettingsAcceptsQWhileEditingPath(t *testing.T) {
 	updated := page.(settingsPage)
 	if updated.buffer != "q" {
 		t.Fatalf("buffer = %q, want q", updated.buffer)
+	}
+}
+
+func TestSettingsSaveUpdatesRuntimeConfigPorts(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	cfg := config.Default()
+	if err := os.MkdirAll(filepath.Dir(cfg.ConfigPath), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	original := []byte("port: 7890\nsocks-port: 7891\nmixed-port: 7892\nproxies:\n  - {name: Tokyo, type: trojan, server: example.test, port: 443}\n")
+	if err := os.WriteFile(cfg.ConfigPath, original, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	p := newSettingsPage(cfg, "test").(settingsPage)
+	p.cfg.HTTPPort = 8890
+	p.cfg.SOCKSPort = 8891
+	p.cfg.MixedPort = 8892
+	page, _ := p.Update(p.save()())
+	p = page.(settingsPage)
+	if p.err != "" {
+		t.Fatal(p.err)
+	}
+
+	data, err := os.ReadFile(cfg.ConfigPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var runtime struct {
+		HTTPPort  int              `yaml:"port"`
+		SOCKSPort int              `yaml:"socks-port"`
+		MixedPort int              `yaml:"mixed-port"`
+		Proxies   []map[string]any `yaml:"proxies"`
+	}
+	if err := yaml.Unmarshal(data, &runtime); err != nil {
+		t.Fatal(err)
+	}
+	if runtime.HTTPPort != 8890 || runtime.SOCKSPort != 8891 || runtime.MixedPort != 8892 || len(runtime.Proxies) != 1 {
+		t.Fatalf("runtime config = %+v", runtime)
+	}
+	saved, err := config.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.HTTPPort != 8890 || saved.SOCKSPort != 8891 || saved.MixedPort != 8892 {
+		t.Fatalf("saved settings ports = %d/%d/%d", saved.HTTPPort, saved.SOCKSPort, saved.MixedPort)
 	}
 }
 

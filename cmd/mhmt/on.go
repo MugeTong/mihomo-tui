@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"mihomo-tui/internal/config"
+	"mihomo-tui/internal/core"
 
 	"github.com/spf13/cobra"
 )
@@ -17,6 +18,13 @@ func createOnCmd() *cobra.Command {
 			cfg, err := config.Load()
 			if err != nil {
 				return err
+			}
+			manager, err := core.NewConfiguredManager(cfg)
+			if err != nil {
+				return err
+			}
+			if manager.Status() != core.StatusRunning {
+				return fmt.Errorf("Mihomo is not running; start it first")
 			}
 			fmt.Printf("export http_proxy='http://127.0.0.1:%d'\n", cfg.HTTPPort)
 			fmt.Printf("export https_proxy='http://127.0.0.1:%d'\n", cfg.HTTPPort)

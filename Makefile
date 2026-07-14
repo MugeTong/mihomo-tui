@@ -1,4 +1,4 @@
-VERSION ?= 1.0.3
+VERSION ?= 1.1.0
 MIHOMO_VERSION := 1.19.28
 BUILD_DIR := releases/build
 RELEASE_DIR := releases
