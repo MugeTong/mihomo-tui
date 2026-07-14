@@ -10,6 +10,9 @@ rules:
   - IP-CIDR6,fc00::/7,DIRECT,no-resolve
   - IP-CIDR6,fe80::/10,DIRECT,no-resolve
 
+  # Private artifact repositories
+  - DOMAIN-KEYWORD,nexus,DIRECT
+
   # AI and developer services
   - DOMAIN,copilot.microsoft.com,Proxy
   - DOMAIN,copilot.bing.com,Proxy

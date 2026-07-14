@@ -27,3 +27,19 @@ func TestEmbeddedDefaultsUseKnownPolicies(t *testing.T) {
 		}
 	}
 }
+
+func TestEmbeddedDefaultsRouteNexusDirectly(t *testing.T) {
+	rules, err := Default()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, rule := range rules {
+		if rule.Type == "DOMAIN-KEYWORD" && rule.Value == "nexus" {
+			if rule.Policy != "DIRECT" {
+				t.Fatalf("nexus policy = %q, want DIRECT", rule.Policy)
+			}
+			return
+		}
+	}
+	t.Fatal("embedded defaults do not contain the nexus direct rule")
+}
